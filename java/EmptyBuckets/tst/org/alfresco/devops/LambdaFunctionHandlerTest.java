@@ -112,7 +112,6 @@ public class LambdaFunctionHandlerTest {
 			assertEquals(result,"SUCCESS");
 
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -161,7 +160,6 @@ public class LambdaFunctionHandlerTest {
 			assertEquals(result,"SUCCESS");
 
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
