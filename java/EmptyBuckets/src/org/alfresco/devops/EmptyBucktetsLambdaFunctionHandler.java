@@ -20,9 +20,10 @@ import com.amazonaws.services.s3.model.VersionListing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+
 public class EmptyBucktetsLambdaFunctionHandler implements RequestHandler<Map<String,Object>, Object> {
 
-	private static enum Status {
+	public static enum Status {
 		SUCCESS, FAILED
 	}
 
@@ -42,14 +43,14 @@ public class EmptyBucktetsLambdaFunctionHandler implements RequestHandler<Map<St
 		if(!requestType.equalsIgnoreCase("Delete")){
 			logger.log("[INFO] RequestType "+ requestType +" -> exit");
 			sendMessage(input, Status.SUCCESS,context);
-			return null;
+			return Status.SUCCESS.toString();
 		}
 
 		try{
 			if(!s3.doesBucketExist(bucketName)){
 				logger.log("[WARN] Bucket "+ bucketName +" does not exist -> exit");
 				sendMessage(input, Status.SUCCESS,context);
-				return null;
+				return Status.SUCCESS.toString();
 			}
 			logger.log("[INFO] bucket "+bucketName+" deleting content");
 			deleteAllVersions(bucketName, s3);
@@ -58,18 +59,18 @@ public class EmptyBucktetsLambdaFunctionHandler implements RequestHandler<Map<St
 			s3.deleteBucket(bucketName);
 			logger.log("[INFO] bucket "+ bucketName +" deleted!");
 			sendMessage(input, Status.SUCCESS,context);
-			return null;
+			return Status.SUCCESS.toString();
 		}
 		catch (SdkClientException  sce) {
 			String st = ExceptionUtils.getStackTrace(sce);
 			logger.log("[ERROR] Not possible to delete "+ bucketName + "\nStackTrace "+st);
 			sendMessage(input, Status.FAILED,context);
-			return null;
+			return Status.FAILED.toString();
 		}
 
 	}
 
-	private void sendMessage(Map<String, Object> input, Status status, Context context) {
+	public void sendMessage(Map<String, Object> input, Status status, Context context) {
 
 		LambdaLogger logger = context.getLogger();
 		String responseURL = (String)input.get("ResponseURL");
