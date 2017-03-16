@@ -9,7 +9,7 @@ import boto3
 import hashlib
 import json
 import urllib2
-import os
+import sys
 from botocore.vendored import requests
 
 SUCCESS = "SUCCESS"
@@ -23,28 +23,39 @@ INGRESS_PORTS = [ 443 ]
 SECURITY_GROUP_TAGS = { 'Cloudfront': 'true' }
 
 def lambda_handler(event, context):
-    try:
-        if event['RequestType'] == "Create":
-            print("Received event: " + json.dumps(event, indent=2))
-            url = event['ResourceProperties']['Url']
-            url_md5 = get_remote_md5_sum(url)
-    
-            # Load the ip ranges from the url
-            ip_ranges = json.loads(get_ip_groups_json(url, url_md5))
-    
-            # extract the service ranges
-            cf_ranges = get_ranges_for_service(ip_ranges, SERVICE)
-    
-            # update the security groups
-            result = update_security_groups(cf_ranges)
-    
-            #return result
-            print result
-    except Exception as err:
-        print err
-        send(event, context, "FAILED", {}, event['ResourceProperties']['ServiceToken'])
+    if 'Records' in event:
+        try:
+            print("Received SNS event: " + json.dumps(event, indent=2))
+            message = json.loads(event['Records'][0]['Sns']['Message'])
+            sns_result = event_helper(message['url'], message['md5'])
+            print sns_result
+        except Exception as err:
+            print str(err)
+    elif 'ResourceProperties' in event:
+        try:
+            print("Received CFN event: " + json.dumps(event, indent=2))
+            if event['RequestType'] == "Create":
+                url = event['ResourceProperties']['Url']
+                cfn_result = event_helper(url, get_remote_md5_sum(url))
+                print cfn_result
+        except Exception as err:
+            print str(err)
+            send(event, context, "FAILED", {}, event['ResourceProperties']['ServiceToken'])
+        else:
+            send(event, context, "SUCCESS", {}, event['ResourceProperties']['ServiceToken'])
     else:
-        send(event, context, "SUCCESS", {}, event['ResourceProperties']['ServiceToken'])
+        sys.exit('Event not found. Exiting...')
+
+def event_helper(url, url_md5):
+        # Load the ip ranges from the url
+        ip_ranges = json.loads(get_ip_groups_json(url, url_md5))
+            
+        # extract the service ranges
+        cf_ranges = get_ranges_for_service(ip_ranges, SERVICE)
+            
+        # update the security groups
+        result = update_security_groups(cf_ranges)
+        return result
 
 def get_remote_md5_sum(url, max_file_size=100*1024*1024):
     remote = urllib2.urlopen(url)
@@ -61,7 +72,7 @@ def get_remote_md5_sum(url, max_file_size=100*1024*1024):
         hash.update(data)
 
     return hash.hexdigest()
-
+            
 def get_ip_groups_json(url, expected_hash):
     print("Updating from " + url)
 
