@@ -61,7 +61,7 @@ def details_marketo(lead_id):
         return response_m
 
 #function to insert the request in the dynamodB table for the Trial Request Handler
-def insert_into_dynamo(table,lead_id, response_m, fulfilled_test, count_attemps):
+def insert_into_dynamo(table, lead_id, response_m, fulfilled_test, count_attemps):
 
     curr_date = time.strftime("%d/%m/%Y")
     if response_m == "":
