@@ -5,8 +5,6 @@ import boto3
 import json
 import six
 
-sqs_read_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-LE73O10X02XK'
-sqs_publish_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1N2FII2ZEIOKE'
 
 
 def lambda_handler(event, context):
@@ -49,6 +47,9 @@ def lambda_handler(event, context):
 
 class InstanceRequestHandler:
     def __init__(self):
+        self.sqs_read_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-LE73O10X02XK'
+        self.sqs_publish_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1N2FII2ZEIOKE'
+
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.sqs_client = boto3.client('sqs')
@@ -73,7 +74,7 @@ class InstanceRequestHandler:
             message['stack_url'] = stackUrl
             try:
                 response = self.sqs_client.send_message(
-                    QueueUrl=sqs_publish_url,
+                    QueueUrl=self.sqs_publish_url,
                     MessageBody=json.dumps(message),
                 )
                 return response
