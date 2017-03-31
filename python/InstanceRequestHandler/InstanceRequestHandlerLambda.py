@@ -5,15 +5,19 @@ import boto3
 import json
 import six
 
-sqs_client = boto3.client('sqs')
-ec2_client = boto3.client('ec2')
+sqs_client = boto3.client('sqs',region_name='us-east-1')
+ec2_client = boto3.client('ec2',region_name='us-east-1')
 
 def lambda_handler(event, context):
     message = receiveMessage()
-    trialStack = listStack()
-    stackId = trialStack['StackId']
-    trialStackOutputs = trialStack['Outputs']
-    if trialStackOutputs:
+    stackList = describeStack()
+    if stackList:
+        trialStack = findStack(stackList)
+    else:
+        return 'FAILURE'
+    if trialStack:
+        stackId = trialStack['StackId']
+        trialStackOutputs = trialStack['Outputs']
         stackUrl = findOutputKeyValue(trialStackOutputs, 'Url')
         instanceId = findOutputKeyValue(trialStackOutputs, 'InstanceId')
     else:
@@ -58,29 +62,35 @@ def sendMessage(stackId, stackUrl, originalmessage):
         except Exception as err:
             return None
       
-def listStack():
+def describeStack():
     try:
-        cloud_client = boto3.client('cloudformation')
+        cloud_client = boto3.client('cloudformation',region_name='us-east-1')
         trial = False
         test = False
         try:
             response = cloud_client.describe_stacks()
             stackList = response['Stacks']
-            resultList = []
-            for stack in stackList:
-                if stack['StackStatus']=="CREATE_COMPLETE" or stack['StackStatus']=="UPDATE_COMPLETE":
-                    for output in stack['Outputs']:
-                        if output['OutputKey']=="Type" and output['OutputValue']=="Trial" :
-                            trial = True
-                        if output['OutputKey']=="Stage" and output['OutputValue']=="test" :
-                            test = True
-                    if trial and test :
-                        resultList.append(stack)
-            if len(resultList) != 0:
-                return resultList[0]
+            if stackList != None:
+                return stackList
         except Exception as err:
             return None
     except Exception as err:
+        return None
+
+def findStack(stackList):
+    resultList = []
+    for stack in stackList:
+        if stack['StackStatus']=="CREATE_COMPLETE" :
+            for output in stack['Outputs']:
+                if output['OutputKey']=="Type" and output['OutputValue']=="Trial" :
+                    trial = True
+                if output['OutputKey']=="Stage" and output['OutputValue']=="test" :
+                    test = True
+            if trial and test :
+                resultList.append(stack)
+    if len(resultList) != 0:
+        return resultList[0]
+    else:
         return None
     
 def allocateInstance(instanceId):
@@ -130,7 +140,7 @@ def findInstance(instanceId):
     return None
     
 def findOutputKeyValue(trialStackOutputs, key):
-    if trialStackOutputs and key and isinstance(key, str) and  key.strip():
+    if trialStackOutputs and key  and  key.strip():
         for output in trialStackOutputs:
             outputKey = output['OutputKey']
             if outputKey and isinstance(outputKey, str) and  outputKey.strip():
@@ -140,4 +150,3 @@ def findOutputKeyValue(trialStackOutputs, key):
                 except Exception as err:
                     return None
     return None
-             
