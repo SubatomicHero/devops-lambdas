@@ -5,43 +5,51 @@ import boto3
 import json
 import six
 
-class InstanceRequestHandler:
-    def __init__(self):
-        try:
-            self.cloud_client = boto3.client('cloudformation', region_name='us-east-1')
-            self.sqs_client = boto3.client('sqs', region_name='us-east-1')
-            self.ec2_client = boto3.client('ec2', region_name='us-east-1')
-        except Exception as err:
-            return None
 
-    def lambda_handler(self , event, context):
-        message = self.receiveMessage()
-        stackList = self.describeStack()
+def lambda_handler(self , event, context):
+    try :
+        IRH = InstanceRequestHandler()
+        message = IRH.receiveMessage()
+        stackList = IRH.describeStack()
         if stackList:
-            trialStack = self.findStack(stackList)
+            trialStack = IRH.findStack(stackList)
         else:
             return 'FAILURE'
         if trialStack:
             stackId = trialStack['StackId']
             trialStackOutputs = trialStack['Outputs']
-            stackUrl = self.findOutputKeyValue(trialStackOutputs, 'Url')
-            instanceId = self.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+            stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
+            instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
         else:
             return 'FAILURE'
         if instanceId != None:
-            instanceTags = self.allocateInstance(instanceId)
+            instanceTags = IRH.allocateInstance(instanceId)
             if instanceTags == None:
                 return 'FAILURE'
         else:
             return 'FAILURE'
         if stackId == None and stackUrl == None and message == None:
             return 'FAILURE'
-        response = self.sendMessage(stackId,stackUrl,message)
+        response = IRH.sendMessage(stackId,stackUrl,message)
         if response == None :
             return 'FAILURE'
-        return 'SUCCESS'
-        
+    except Exception as err:
+        message = "{0}\n".format(err)
+        print(message)
+        raise err
+    else:
+        print("All OK")
+        return 200
 
+class InstanceRequestHandler:
+    def __init__(self):
+        try:
+            self.cloud_client = boto3.client('cloudformation')
+            self.sqs_client = boto3.client('sqs')
+            self.ec2_client = boto3.client('ec2')
+        except Exception as err:
+            return None
+        
     def receiveMessage(self ):
         try :
             message = self.sqs_client.receive_message(
