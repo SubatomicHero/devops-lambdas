@@ -13,26 +13,29 @@ def lambda_handler(event, context):
         stackList = IRH.describeStack()
         if stackList:
             trialStack = IRH.findStack(stackList)
-        else:
-            return 'FAILURE'
-        if trialStack:
-            stackId = trialStack['StackId']
-            trialStackOutputs = trialStack['Outputs']
-            stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
-            instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
-        else:
-            return 'FAILURE'
-        if instanceId != None:
-            instanceTags = IRH.allocateInstance(instanceId)
-            if instanceTags == None:
+            if trialStack:
+                stackId = trialStack['StackId']
+                trialStackOutputs = trialStack['Outputs']
+                stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
+                instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+                if instanceId != None:
+                    instanceTags = IRH.allocateInstance(instanceId)
+                    if instanceTags == None:
+                        return 'FAILURE'
+                    else:
+                        return 'FAILURE'
+                    if stackId == None or stackUrl == None or message == None:
+                        return 'FAILURE'
+                    response = IRH.sendMessage(stackId,stackUrl,message)
+                    if response == None :
+                        return 'FAILURE'
+                else:
+                    return 'FAILURE'
+            else:
                 return 'FAILURE'
         else:
             return 'FAILURE'
-        if stackId == None and stackUrl == None and message == None:
-            return 'FAILURE'
-        response = IRH.sendMessage(stackId,stackUrl,message)
-        if response == None :
-            return 'FAILURE'
+
     except Exception as err:
         message = "{0}\n".format(err)
         print(message)
