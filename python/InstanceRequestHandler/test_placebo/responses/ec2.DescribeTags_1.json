@@ -1,0 +1,70 @@
+{
+  "ResponseMetadata": {
+    "RetryAttempts": 0,
+    "HTTPStatusCode": 200,
+    "RequestId": "40426632-a946-45a5-9235-66c77221e13f",
+    "HTTPHeaders": {
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "server": "AmazonEC2",
+      "content-type": "text/xml;charset=UTF-8",
+      "date": "Tue, 28 Mar 2017 13:07:45 GMT"
+    }
+  },
+  "Tags": [
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "179276412545",
+      "Key": "Account"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "true",
+      "Key": "Allocated"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "JuenasTestInstance",
+      "Key": "Name"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "test",
+      "Key": "Stack"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "test",
+      "Key": "Stage"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "trial",
+      "Key": "Type"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "TrialEc2Instance",
+      "Key": "aws:cloudformation:logical-id"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "arn:aws:cloudformation:us-east-1:179276412545:stack/juenasstack/9c2244a0-0f19-11e7-88f1-50fae984a0d1",
+      "Key": "aws:cloudformation:stack-id"
+    },
+    {
+      "ResourceType": "instance",
+      "ResourceId": "i-011e00f871fdcac11",
+      "Value": "juenasstack",
+      "Key": "aws:cloudformation:stack-name"
+    }
+  ]
+}
