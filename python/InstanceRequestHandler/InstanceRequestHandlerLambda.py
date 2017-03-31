@@ -5,148 +5,140 @@ import boto3
 import json
 import six
 
-sqs_client = boto3.client('sqs',region_name='us-east-1')
-ec2_client = boto3.client('ec2',region_name='us-east-1')
-
-def lambda_handler(event, context):
-    message = receiveMessage()
-    stackList = describeStack()
-    if stackList:
-        trialStack = findStack(stackList)
-    else:
-        return 'FAILURE'
-    if trialStack:
-        stackId = trialStack['StackId']
-        trialStackOutputs = trialStack['Outputs']
-        stackUrl = findOutputKeyValue(trialStackOutputs, 'Url')
-        instanceId = findOutputKeyValue(trialStackOutputs, 'InstanceId')
-    else:
-        return 'FAILURE'
-    if instanceId != None:
-        instanceTags = allocateInstance(instanceId)
-        if instanceTags == None:
-            return 'FAILURE'
-    else:
-        return 'FAILURE'
-    if stackId == None and stackUrl == None and message == None:
-        return 'FAILURE'
-    response = sendMessage(stackId,stackUrl,message)
-    if response == None :
-        return 'FAILURE'
-    return 'SUCCESS'
-    
-
-def receiveMessage():
-    try :
-        message = sqs_client.receive_message(
-            QueueUrl=os.environ['sqs_read_url'],
-            AttributeNames=['All'],
-             MessageAttributeNames=['All'],
-        )
-        return message
-    except Exception as err:
-        return None
-    
-def sendMessage(stackId, stackUrl, originalmessage):
-    if stackId.strip() and stackUrl.strip() and  originalmessage:
-        message = {}
-        message['message'] = originalmessage
-        message['stack_id'] = stackId
-        message['stack_url'] = stackUrl
+class InstanceRequestHandler:
+    def __init__(self):
         try:
-            response = sqs_client.send_message(
-                QueueUrl=os.environ['sqs_publish_url'],
-                MessageBody=json.dumps(message),
-            )
-            return response
+            self.cloud_client = boto3.client('cloudformation', region_name='us-east-1')
+            self.sqs_client = boto3.client('sqs', region_name='us-east-1')
+            self.ec2_client = boto3.client('ec2', region_name='us-east-1')
         except Exception as err:
             return None
-      
-def describeStack():
-    try:
-        cloud_client = boto3.client('cloudformation',region_name='us-east-1')
-        trial = False
-        test = False
+
+    def lambda_handler(self , event, context):
+        message = self.receiveMessage()
+        stackList = self.describeStack()
+        if stackList:
+            trialStack = self.findStack(stackList)
+        else:
+            return 'FAILURE'
+        if trialStack:
+            stackId = trialStack['StackId']
+            trialStackOutputs = trialStack['Outputs']
+            stackUrl = self.findOutputKeyValue(trialStackOutputs, 'Url')
+            instanceId = self.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+        else:
+            return 'FAILURE'
+        if instanceId != None:
+            instanceTags = self.allocateInstance(instanceId)
+            if instanceTags == None:
+                return 'FAILURE'
+        else:
+            return 'FAILURE'
+        if stackId == None and stackUrl == None and message == None:
+            return 'FAILURE'
+        response = self.sendMessage(stackId,stackUrl,message)
+        if response == None :
+            return 'FAILURE'
+        return 'SUCCESS'
+        
+
+    def receiveMessage(self ):
+        try :
+            message = self.sqs_client.receive_message(
+                QueueUrl=os.environ['sqs_read_url'],
+            )
+            return message
+        except Exception as err:
+            return None
+        
+    def sendMessage(self ,stackId, stackUrl, originalmessage):
+        if stackId.strip() and stackUrl.strip() and  originalmessage:
+            message = {}
+            message['message'] = originalmessage
+            message['stack_id'] = stackId
+            message['stack_url'] = stackUrl
+            try:
+                response = self.sqs_client.send_message(
+                    QueueUrl=os.environ['sqs_publish_url'],
+                    MessageBody=json.dumps(message),
+                )
+                return response
+            except Exception as err:
+                return None
+        
+    def describeStack(self ):
         try:
-            response = cloud_client.describe_stacks()
+            response = self.cloud_client.describe_stacks()
             stackList = response['Stacks']
             if stackList != None:
                 return stackList
         except Exception as err:
             return None
-    except Exception as err:
-        return None
 
-def findStack(stackList):
-    resultList = []
-    for stack in stackList:
-        if stack['StackStatus']=="CREATE_COMPLETE" :
-            for output in stack['Outputs']:
-                if output['OutputKey']=="Type" and output['OutputValue']=="Trial" :
-                    trial = True
-                if output['OutputKey']=="Stage" and output['OutputValue']=="test" :
-                    test = True
-            if trial and test :
-                resultList.append(stack)
-    if len(resultList) != 0:
-        return resultList[0]
-    else:
+    def findStack(self ,stackList):
+        trial = False
+        test = False
+        for stack in stackList:
+            if stack['StackStatus']=="CREATE_COMPLETE" :
+                for output in stack['Outputs']:
+                    if output['OutputKey']=="Type" and output['OutputValue']=="Trial" :
+                        trial = True
+                    if output['OutputKey']=="Stage" and output['OutputValue']=="test" :
+                        test = True
+                if trial and test :
+                    return stack
         return None
-    
-def allocateInstance(instanceId):
-    instance = findInstance(instanceId)
-    if instance != None:
-        for tag in instance['Tags']:
-            tagKey = tag['Key']
-            if tagKey=='Allocated' and tag['Value']=='false':
-                try :
-                    response = ec2_client.create_tags(
-                        Resources=[
-                            instanceId,
-                        ],
-                        Tags=[
-                            {
-                                'Key': 'Allocated',
-                                'Value': 'true'
-                            },
-                        ]
-                    )
-                    instance = findInstance(instanceId)
-                    if instance != None:
-                        return instance['Tags']
-                except Exception as err:
-                    return None
-            else:
-                return instance['Tags']
-    return None
-    
+        
+    def allocateInstance(self ,instanceId):
+        instance = self.findInstance(instanceId)
+        if instance != None:
+            for tag in instance['Tags']:
+                tagKey = tag['Key']
+                if tagKey=='Allocated' and tag['Value']=='false':
+                    try :
+                        response = self.ec2_client.create_tags(
+                            Resources=[
+                                instanceId,
+                            ],
+                            Tags=[
+                                {
+                                    'Key': 'Allocated',
+                                    'Value': 'true'
+                                },
+                            ]
+                        )
+                        return response
+                    except Exception as err:
+                        return None
+        return 'SUCCESS'
+        
 
-def findInstance(instanceId):
-    if instanceId and isinstance(instanceId, six.string_types) and  instanceId.strip():
-        try:
-            instance = ec2_client.describe_tags(
-                Filters=[
-                    {
-                        'Name': 'resource-id',
-                        'Values': [
-                            instanceId,
-                        ],
-                    },
-                ],
-            )
-            return instance
-        except Exception as err:
-            return None
-    return None
-    
-def findOutputKeyValue(trialStackOutputs, key):
-    if trialStackOutputs and key  and  key.strip():
-        for output in trialStackOutputs:
-            outputKey = output['OutputKey']
-            if outputKey and isinstance(outputKey, str) and  outputKey.strip():
-                try:
-                    if outputKey == key:
-                        return output['OutputValue']
-                except Exception as err:
-                    return None
-    return None
+    def findInstance(self ,instanceId):
+        if instanceId and isinstance(instanceId, six.string_types) and  instanceId.strip():
+            try:
+                instance = self.ec2_client.describe_tags(
+                    Filters=[
+                        {
+                            'Name': 'resource-id',
+                            'Values': [
+                                instanceId,
+                            ],
+                        },
+                    ],
+                )
+                return instance
+            except Exception as err:
+                return None
+        return None
+        
+    def findOutputKeyValue(self ,trialStackOutputs, key):
+        if trialStackOutputs and key  and  key.strip():
+            for output in trialStackOutputs:
+                outputKey = output['OutputKey']
+                if outputKey and isinstance(outputKey, str) and  outputKey.strip():
+                    try:
+                        if outputKey == key:
+                            return output['OutputValue']
+                    except Exception as err:
+                        return None
+        return None
