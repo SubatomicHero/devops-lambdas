@@ -1,32 +1,3 @@
-# import unittest, unittest2, os.path
-# from Boto3wrapper import Boto3Wrapper
-# from lambdafunc import *
-# class MyTest(unittest2.TestCase):
-#     def setUp(self):
-#         def attach_placebo(self,session):
-#             path = os.path.join(
-#                 os.path.dirname(__file__),
-#                 'placebo')
-#             self.pill = placebo.attach(session, data_path=path)
-#             return session
-#         def attach_placebo2(self,client):
-#             path = os.path.join(
-#                 os.path.dirname(__file__),
-#                 'placebo')
-#             self.pill = placebo.attach(client, data_path=path)
-#             return client
-#         Boto3Wrapper.SESSION_CREATE_HOOK = attach_placebo
-#         Boto3Wrapper.CLIENT_CREATE_HOOK = attach_placebo2
-#         self.pill.playback()
-#     def test_receive(self):
-#         self.assertEqual(receiveMessage(), 2 )
-
-
-
-sqs_read_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-LE73O10X02XK'
-sqs_publish_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1N2FII2ZEIOKE'
-
-
 import unittest
 import os
 
@@ -34,11 +5,23 @@ import boto3
 from mock import Mock, mock
 
 import placebo 
+import json
 
 from InstanceRequestHandlerLambda import InstanceRequestHandler
 
+addresses_result_one = {
+    "Addresses": [
+        {
+            "InstanceId": "",
+            "PublicIp": "192.168.0.1",
+            "Domain": "standard"
+        }
+    ]
+}
+sqs_read_url = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-LE73O10X02XK'
+        
 
-IRH = InstanceRequestHandler
+IRH = InstanceRequestHandler()
 class TestPlacebo(unittest.TestCase):
 
     def setUp(self):
@@ -57,24 +40,38 @@ class TestPlacebo(unittest.TestCase):
     def tearDown(self):
         pass
 
-    
+    def test_ec2(self):
+        self.assertEqual(len(os.listdir(self.data_path)), 0)
+        self.pill.save_response(
+            'ec2', 'DescribeAddresses', addresses_result_one)
+        self.assertEqual(len(os.listdir(self.data_path)), 1)
+        self.pill.playback()
+        ec2_client = self.session.client('ec2')
+        result = ec2_client.describe_addresses()
+        self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
+        result = ec2_client.describe_addresses()
+        self.assertEqual(result['Addresses'][0]['PublicIp'], '192.168.0.1')
 
-    @Mock(all)
+    @Mock
     def test_describe_tags(self):
         self.pill.playback()
         result = IRH.findInstance()
-        self.assertEqual(result['Addresses']['Tags']['Key'],"Account")
+        self.assertEqual(result['Addresses']['Tags']['Key'],"Stage")
+        self.assertEqual(result['Addresses']['Tags']['Key'],"Type")
 
-    @Mock(all)
+    @Mock
     def test_receiveMessage(self):
         self.pill.playback()
-        result = IRH.receiveMessage()
+        ec2_client = self.session.client('sqs')
+        result = ec2_client.receive_message(QueueUrl=sqs_read_url,)
         self.assertEqual(result['Addresses']['ResponseMetadata']['RequestId'],"e62187a6-64ec-508a-a659-d6f238075c90")
 
-    @Mock(all)
+    @Mock
     def test_sendMessage(self):
         self.pill.playback()
-        result = IRH.sendMessage()
+        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
+        message = json.dumps(original_message)
+        result = IRH.sendMessage("2", "url", message )
         self.assertEqual(result['Addresses']['ResponseMetadata']['RequestId'],"e62187a6-64ec-508a-a659-d6f238075c90")
 
 if __name__ == '__main__':
