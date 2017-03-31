@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import boto
 import boto3
 import botocore.exceptions
@@ -12,11 +10,11 @@ import time
 import json 
 from moto import  mock_sqs, mock_ec2, mock_cloudformation, mock_lambda
 from nose.tools import assert_raises
-from InstanceRequestHandlerLambda import *
+from InstanceRequestHandlerLambda import InstanceRequestHandler
 
 
 
-
+IRH = InstanceRequestHandler()
 
 
 @mock_lambda
@@ -56,7 +54,7 @@ def test_sendMessage(stackId, stackUrl,original_message):
 
     original_message['stack_id'] = stackId
     original_message['stack_url'] = stackUrl
-    sqs = boto3.resource('sqs', region_name='us-west-2')
+    sqs = boto3.resource('sqs')
     queue = sqs.create_queue(QueueName='OnlineTrialRequestSQS')
     response = queue.send_message(MessageBody=json.dumps(original_message))
     assert response['ResponseMetadata']['HTTPStatusCode'] == 200
@@ -111,15 +109,17 @@ def test_describeStack():
 
 
 
-    cf = boto3.client('cloudformation', region_name='us-east-1')
+    cf = boto3.client('cloudformation')
     cf.create_stack(
         StackName="trial_stack",
         TemplateBody=dummy_template_json,
     )
 
     stackList = cf.describe_stacks(StackName="trial_stack")['Stacks']
-    stack = stackList[0]
+   
 
+    # stackList = IRH.describeStack()
+    stack = stackList[0]
     response = cf.describe_stack_resources(StackName=stack['StackName'])
     resource = response['StackResources'][0]
     resource['LogicalResourceId'].should.equal('TrialEc2Instance')
@@ -133,28 +133,28 @@ def test_describeStack():
 
 def test_findStack(stackList):
     stackExpected = stackList[0]
-    stackResult = findStack(stackList)
+    stackResult = IRH.findStack(stackList)
     assert stackExpected == stackResult
     print("Test 'Find stacks' : passed")
     return stackResult
 
 def test_findUrl(trialStack):
     urlExpected = "https://requesttest.trial.alfresco.com/online-trial"
-    urlResult = findOutputKeyValue(trialStack['Outputs'], 'Url')
+    urlResult = IRH.findOutputKeyValue(trialStack['Outputs'], 'Url')
     assert urlExpected == urlResult
     print("Test 'find stack Url' : passed")
     return urlResult
 
 def test_findinstanceId(trialStack):
     instanceIdExpected = "i-011e00f871fdcac11"
-    instanceIdResult = findOutputKeyValue(trialStack['Outputs'], 'InstanceId')
+    instanceIdResult = IRH.findOutputKeyValue(trialStack['Outputs'], 'InstanceId')
     assert instanceIdExpected == instanceIdResult
     print("Test 'Find Stack instanceId' : passed")
     return instanceIdResult
 
 @mock_ec2
 def test_findInstance(instanceId):
-    ec2_client = boto3.client('ec2', region_name='us-east-1')
+    ec2_client = boto3.client('ec2')
     instance = ec2_client.describe_tags(
         Filters=[
             {
