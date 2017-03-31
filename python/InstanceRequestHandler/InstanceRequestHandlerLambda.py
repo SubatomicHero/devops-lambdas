@@ -6,7 +6,7 @@ import json
 import six
 
 
-def lambda_handler(self , event, context):
+def lambda_handler(event, context):
     try :
         IRH = InstanceRequestHandler()
         message = IRH.receiveMessage()
