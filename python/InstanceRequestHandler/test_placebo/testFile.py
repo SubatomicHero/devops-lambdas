@@ -41,10 +41,8 @@ class TestPlacebo(unittest.TestCase):
         pass
 
     def test_ec2(self):
-        self.assertEqual(len(os.listdir(self.data_path)), 0)
         self.pill.save_response(
             'ec2', 'DescribeAddresses', addresses_result_one)
-        self.assertEqual(len(os.listdir(self.data_path)), 1)
         self.pill.playback()
         ec2_client = self.session.client('ec2')
         result = ec2_client.describe_addresses()
@@ -59,11 +57,11 @@ class TestPlacebo(unittest.TestCase):
         self.assertEqual(result['Addresses']['Tags']['Key'],"Stage")
         self.assertEqual(result['Addresses']['Tags']['Key'],"Type")
 
-    @Mock
-    def test_receiveMessage(self):
+   
+    def test_receive_message(self):
         self.pill.playback()
-        ec2_client = self.session.client('sqs')
-        result = ec2_client.receive_message(QueueUrl=sqs_read_url,)
+        sqs_client = self.session.client('sqs')
+        result = sqs_client.receive_message(QueueUrl=sqs_read_url,)
         self.assertEqual(result['Addresses']['ResponseMetadata']['RequestId'],"e62187a6-64ec-508a-a659-d6f238075c90")
 
     @Mock
