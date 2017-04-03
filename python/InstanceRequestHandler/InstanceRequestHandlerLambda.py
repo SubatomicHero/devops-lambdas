@@ -51,7 +51,9 @@ class InstanceRequestHandler:
             self.sqs_client = boto3.client('sqs')
             self.ec2_client = boto3.client('ec2')
         except Exception as err:
-            return None
+            message = "{0}\n".format(err)
+            print(message)
+            raise err
         
     def receiveMessage(self ):
         try :
