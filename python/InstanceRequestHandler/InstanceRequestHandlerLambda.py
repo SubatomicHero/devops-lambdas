@@ -76,6 +76,8 @@ class InstanceRequestHandler:
                 return response
             except Exception as err:
                 return None
+        else:
+            return None
         
     def describeStack(self ):
         try:
@@ -139,7 +141,8 @@ class InstanceRequestHandler:
                 return instance
             except Exception as err:
                 return None
-        return None
+        else:
+            return None
         
     def findOutputKeyValue(self ,trialStackOutputs, key):
         if trialStackOutputs and key  and  key.strip():
@@ -151,4 +154,5 @@ class InstanceRequestHandler:
                             return output['OutputValue']
                     except Exception as err:
                         return None
-        return None
+        else:
+            return None
