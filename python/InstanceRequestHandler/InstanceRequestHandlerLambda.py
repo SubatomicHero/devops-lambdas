@@ -121,7 +121,6 @@ class InstanceRequestHandler:
                         return response
                     except Exception as err:
                         return None
-        return 'SUCCESS'
         
 
     def findInstance(self ,instanceId):
