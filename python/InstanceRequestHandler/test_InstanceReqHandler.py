@@ -26,8 +26,11 @@ def test_lambda_handler():
     stackUrl = test_findUrl(trialStack)
     instanceId = test_findinstanceId(trialStack)
     test_findInstance(instanceId)
-    test_allocateInstance()
-    test_sendMessage(stackId, stackUrl, message)
+    tagValue = test_allocateInstance()
+    sendFailed = test_sendMessage(stackId, stackUrl, message)
+    assert tagValue == 'true'
+    assert sendFailed == None
+    print("Test 'lambda handler' : passed")
 
 @mock_sqs
 def test_receiveMessage():
@@ -62,6 +65,7 @@ def test_sendMessage(stackId, stackUrl,original_message):
     assert response.get('Failed') == None
     # assert response.get('MD5OfMessageBody') == '7d8643aa0e8110fd8e26462e9e01600c'
     print("Test 'send message' : passed")
+    return response.get('Failed')
 
 @mock_cloudformation
 def test_describeStack():
@@ -199,5 +203,6 @@ def test_allocateInstance():
     tag.name.should.equal("Allocated")
     tag.value.should.equal("true")
     print("Test 'Allocate Stack ' : passed")
+    return tag.value
 
 test_lambda_handler()
