@@ -11,35 +11,28 @@ def lambda_handler(event, context):
         IRH = InstanceRequestHandler()
         message = IRH.receiveMessage()
         stackList = IRH.describeStack()
-        if stackList:
-            trialStack = IRH.findStack(stackList)
-            if trialStack:
-                stackId = trialStack['StackId']
-                trialStackOutputs = trialStack['Outputs']
-                stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
-                instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
-                if instanceId != None:
-                    instanceTags = IRH.allocateInstance(instanceId)
-                    if instanceTags == None:
-                        return 'FAILURE'
-                    else:
-                        if stackId == None or stackUrl == None or message == None:
-                            return 'FAILURE'
-                        else:
-                            response = IRH.sendMessage(stackId,stackUrl,message)
-                            if response == None :
-                                return 'FAILURE'
-                else:
-                    return 'FAILURE'
-            else:
-                return 'FAILURE'
-        else:
-            return 'FAILURE'
+        if stackList is None:
+            raise
+        trialStack = IRH.findStack(stackList)
+        if trialStack is None:
+            raise
+        stackId = trialStack['StackId']
+        trialStackOutputs = trialStack['Outputs']
+        stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
+        instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+        if instanceId is None:
+            raise
+        instanceTags = IRH.allocateInstance(instanceId)
+        if (instanceTags is None) or (stackId is None) or (stackUrl is None) or (message is None):
+            raise
+        response = IRH.sendMessage(stackId,stackUrl,message)
+        if response  is None :
+            raise
 
     except Exception as err:
         message = "{0}\n".format(err)
         print(message)
-        raise err
+        return 'FAILURE'
     else:
         print("All OK")
         return 200
