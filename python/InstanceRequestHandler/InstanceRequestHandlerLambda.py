@@ -23,12 +23,12 @@ def lambda_handler(event, context):
                     if instanceTags == None:
                         return 'FAILURE'
                     else:
-                        return 'FAILURE'
-                    if stackId == None or stackUrl == None or message == None:
-                        return 'FAILURE'
-                    response = IRH.sendMessage(stackId,stackUrl,message)
-                    if response == None :
-                        return 'FAILURE'
+                        if stackId == None or stackUrl == None or message == None:
+                            return 'FAILURE'
+                        else:
+                            response = IRH.sendMessage(stackId,stackUrl,message)
+                            if response == None :
+                                return 'FAILURE'
                 else:
                     return 'FAILURE'
             else:
