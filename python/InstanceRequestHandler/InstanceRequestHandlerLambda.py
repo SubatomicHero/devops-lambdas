@@ -12,27 +12,28 @@ def lambda_handler(event, context):
         message = IRH.receiveMessage()
         stackList = IRH.describeStack()
         if stackList is None:
-            raise
+            raise TypeError
         trialStack = IRH.findStack(stackList)
         if trialStack is None:
-            raise
+            raise TypeError
         stackId = trialStack['StackId']
         trialStackOutputs = trialStack['Outputs']
         stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
         instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
         if instanceId is None:
-            raise
+            raise TypeError
         instanceTags = IRH.allocateInstance(instanceId)
         if (instanceTags is None) or (stackId is None) or (stackUrl is None) or (message is None):
-            raise
+            raise TypeError
         response = IRH.sendMessage(stackId,stackUrl,message)
         if response  is None :
-            raise
+            raise TypeError
 
     except Exception as err:
         message = "{0}\n".format(err)
         print(message)
-        return 'FAILURE'
+        print (err.args)
+        return ('FAILURE due to '+ message)
     else:
         print("All OK")
         return 200
