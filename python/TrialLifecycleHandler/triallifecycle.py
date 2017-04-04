@@ -25,7 +25,7 @@ class LifecycleHandler:
     self.EXPIRY_KEY = 'ExpiryDate'
     self.STATES = ['CREATE_COMPLETE', 'UPDATE_COMPLETE']
     self.STACK_TYPE = os.environ['stack_type'] if os.environ.get('stack_type') else 'Trial'
-    self.DAYS_TO_STOP = os.environ['days_to_stop'] if os.environ.get('days_to_stop') else 3
+    self.DAYS_TO_STOP = int(os.environ['days_to_stop']) if os.environ.get('days_to_stop') else 3
 
   def describe_stacks(self):
     """Describes all Cloudformation stacks and returns the result"""
