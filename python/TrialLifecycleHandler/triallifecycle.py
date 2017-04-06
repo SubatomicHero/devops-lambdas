@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import boto3
 import os
 
-def lambda_handler(event, context):
+def handler(event, context):
     try:
         handler = LifecycleHandler()
         handler.run()
