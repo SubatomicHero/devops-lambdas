@@ -131,7 +131,7 @@ class TestTrialLifeCycle(unittest.TestCase):
   def test_get_instance_id(self):
     stack = {}
     id = handler.get_instance_id(stack)
-    self.assertEquals(id, "")
+    self.assertIsNone(id)
 
     instance = self.add_servers()
     self.build_stack(instance.id)
@@ -199,6 +199,18 @@ class TestTrialLifeCycle(unittest.TestCase):
       response = handler.cfn_client.describe_stacks(
         StackName='test_stack'
       )
+  
+  @mock_cloudformation
+  @mock_ec2
+  def test_run_returns_0(self):
+    today = handler.TODAY
+    yesterday = today - timedelta(days=1)
+    instance = self.add_servers()
+    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date()))
+    self.build_stack(instance.id)
+    code = handler.run()
+
+    self.assertEquals(code, 0)
 
 if __name__ == '__main__':
   unittest.main()
