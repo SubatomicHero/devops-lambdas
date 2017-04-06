@@ -3,15 +3,6 @@ from datetime import datetime, timedelta
 import boto3
 import os
 
-def handler(event, context):
-    try:
-        handler = LifecycleHandler()
-        handler.run()
-        return 0
-    except Exception as err:
-        print("{}".format(err))
-    return 1
-
 class LifecycleHandler:
   """
   This class contains all the functions to handle the lifecycle of the Cloudformation Stacks.
@@ -66,17 +57,19 @@ class LifecycleHandler:
   def get_instance_id(self, stack):
     """returns the instance id from a list of outputs, if present"""
     if stack and stack['StackStatus'] in self.STATES:
+      # if one of the outputs keys is type and the value is stack_type, then we need the instance id
       is_good_stack = False
-      while True:
-        for output in stack['Outputs']:
-          if not is_good_stack and output['OutputKey'] == 'Type' and output['OutputValue'] == self.STACK_TYPE:
-            is_good_stack = True
+      for output in stack['Outputs']:
+        if not is_good_stack and output['OutputKey'] == 'Type' and output['OutputValue'] == self.STACK_TYPE:
+          is_good_stack = True
+          break
 
-          if is_good_stack and output['OutputKey'] == 'InstanceId':
+      if is_good_stack:
+        for output in stack['Outputs']:
+          if output['OutputKey'] == 'InstanceId':
             print("get_instance_id(): returning {}".format(output['OutputValue']))
             return output['OutputValue']
-    print('get_instance_id(): Returning nothing!')
-    return ""
+    return None
 
   def update_tags(self, instance_id, tags):
     """Updates the given tags list onto the instance id"""
@@ -116,8 +109,8 @@ class LifecycleHandler:
 
     for stack in response['Stacks']:
       instance_id = self.get_instance_id(stack)
-      print("We have an instance {}".format(instance_id))
       if instance_id:
+        print("We have an instance {}".format(instance_id))
         tags = self.describe_tags(instance_id)
         if tags is None:
           # raise error, instance must be tagged
@@ -160,3 +153,15 @@ class LifecycleHandler:
                   break
             else:
               print("{} has not expired yet.".format(stack['StackName']))
+              break
+    print("No more stacks to assess")
+    return 0
+
+cls = LifecycleHandler()
+
+def handler(event, context):
+    try:
+        return cls.run()
+    except Exception as err:
+        print("{}".format(err))
+    return 1
