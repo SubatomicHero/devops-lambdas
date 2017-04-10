@@ -5,44 +5,12 @@ import boto3
 import json
 import six
 
-
-def lambda_handler(event, context):
-    try :
-        IRH = InstanceRequestHandler()
-        message = IRH.receiveMessage()
-        stackList = IRH.describeStack()
-        if stackList is None:
-            raise TypeError
-        trialStack = IRH.findStack(stackList)
-        if trialStack is None:
-            raise TypeError
-        stackId = trialStack['StackId']
-        trialStackOutputs = trialStack['Outputs']
-        stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
-        instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
-        if instanceId is None:
-            raise TypeError
-        instanceTags = IRH.allocateInstance(instanceId)
-        if (instanceTags is None) or (stackId is None) or (stackUrl is None) or (message is None):
-            raise TypeError
-        response = IRH.sendMessage(stackId,stackUrl,message)
-        if response  is None :
-            raise TypeError
-
-    except Exception as err:
-        message = "{0}\n".format(err)
-        print(message)
-        print (err.args)
-        return ('FAILURE due to '+ message)
-    else:
-        print("All OK")
-        return 200
-
 class InstanceRequestHandler:
     def __init__(self):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.sqs_client = boto3.client('sqs')
+            self.sqs_res = boto3.resource('sqs')
             self.ec2_client = boto3.client('ec2')
         except Exception as err:
             message = "{0}\n".format(err)
@@ -51,11 +19,25 @@ class InstanceRequestHandler:
         
     def receiveMessage(self ):
         try :
-            message = self.sqs_client.receive_message(
+            response = self.sqs_client.receive_message(
                 QueueUrl=os.environ['sqs_read_url'],
             )
-            return message
+            print (response)
+            if "Messages" in response :
+                messages = response['Messages']
+                if (len(messages) > 0):
+                    print('Recieved messages: {}'.format(messages))
+                    return messages
+                else :
+                    print ('No messages to read')
+                    return 0
+            else :
+                print ('No messages to read')
+                return 0
         except Exception as err:
+            print ('error')
+            message = "{0}\n".format(err)
+            print(message)
             return None
         
     def sendMessage(self ,stackId, stackUrl, originalmessage):
@@ -134,8 +116,11 @@ class InstanceRequestHandler:
                         },
                     ],
                 )
+            
                 return instance
             except Exception as err:
+                message = "{0}\n".format(err)
+                print(message)
                 return None
         else:
             return None
@@ -152,3 +137,81 @@ class InstanceRequestHandler:
                         return None
         else:
             return None
+            
+    def run(self):
+        try :
+            stackList = IRH.describeStack()
+            if stackList is None:
+                raise TypeError
+            trialStack = IRH.findStack(stackList)
+            if trialStack is None:
+                raise TypeError
+            stackId = trialStack['StackId']
+            trialStackOutputs = trialStack['Outputs']
+            stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
+            instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+            if instanceId is None:
+                raise TypeError
+            instanceTags = IRH.allocateInstance(instanceId)
+            if  (stackId is None) or (stackUrl is None) :
+                print (instanceTags)
+                raise TypeError
+            messages = IRH.receiveMessage()
+            if(messages == 0):
+                return 200
+            elif messages is None :
+                raise TypeError
+            else:
+                unread = False
+                for i in range(len(messages)):
+                    message = messages[i]
+                    if message['MessageId'] in msg_id:
+                        print ('Message already read.')
+                        if(i == messages[len(messages)-1] and not(unread)):
+                            print ('All Messages in the queue have been already read.')
+                            return 'SUCCESS'
+                    else:
+                        msg_id.append(message['MessageId'])
+                        unread = True
+                        try:
+                            m = self.sqs_res.Message('sqs_read_url',message['ReceiptHandle'])
+                        except Exception as err:
+                            message = "{0}\n".format(err)
+                            print(message)
+                            return None
+                        messageBody = json.dumps(m['body'])
+                        
+                        response = IRH.sendMessage(stackId,stackUrl,messagebody)
+                        if response  is None :
+                            raise TypeError
+                        
+                           
+                        m.delete()
+            
+            
+    
+        except Exception as err:
+            message = "{0}\n".format(err)
+            print(message)
+            print (err.args)
+            return ('FAILURE due to '+ message)
+        else:
+            print("All OK")
+            return 200
+
+IRH = InstanceRequestHandler()
+
+def lambda_handler(event, context):
+    try :
+        res = IRH.run()
+        if res is None :
+            raiseTypeError
+
+    except Exception as err:
+        message = "{0}\n".format(err)
+        print(message)
+        print (err.args)
+        return ('FAILURE due to '+ message)
+    else:
+        print("All OK")
+        return 200
