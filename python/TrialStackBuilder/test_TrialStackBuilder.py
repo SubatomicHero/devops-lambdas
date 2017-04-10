@@ -39,11 +39,6 @@ class TestTrialStackBuilder(unittest.TestCase):
         self.assertIsNotNone(TSB.cloud_client)
         self.assertIsNotNone(TSB.ec2_client)
 
-    @mock_ec2
-    def add_servers(self, ami_id="ami-0b71c21d"):
-        conn = boto.connect_ec2('the_key', 'the_secret')
-        return conn.run_instances(ami_id).instances[0]
-
     @mock_cloudformation
     def build_stack(self, instance_id="i-0e0f25febd2bb4f43"):
         # Create a stack first so we can play with it
@@ -85,21 +80,17 @@ class TestTrialStackBuilder(unittest.TestCase):
         }
         }
         template = json.dumps(dummy_template)
-        # cf = boto3.client('cloudformation')
-        cf = TSB.cloud_client
-        return cf.create_stack(
+        return TSB.cloud_client.create_stack(
             StackName="test_stack",
             TemplateBody=template
         )
     @mock_cloudformation
     def test_listStack(self):
-        # # cf = boto3.client('cloudformation')
-        # cf = TSB.cloud_client
-        # stacks = cf.describe_stacks(StackName="trial_stack")['Stacks']
-        # self.assertIsNotNone(stacks)
-        # self.assertEqual(len(stacks['Stacks']), 1)
-        print("Test 'describe stacks' : passed")
-    #     return stacks
+        self.build_stack()
+        stacks = TSB.listStack()
+        self.assertIsNotNone(stacks)
+        self.assertEqual(len(stacks), 1)
+        print("Test 'list stacks' : passed")
 
     # @mock_ec2
     # @mock_cloudformation
