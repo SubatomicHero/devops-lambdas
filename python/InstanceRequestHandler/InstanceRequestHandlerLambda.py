@@ -64,6 +64,8 @@ class InstanceRequestHandler:
             if stackList != None:
                 return stackList
         except Exception as err:
+            print(message)
+            print (err.args)
             return None
 
     def findStack(self ,stackList):
@@ -82,27 +84,30 @@ class InstanceRequestHandler:
         
     def allocateInstance(self ,instanceId):
         instance = self.findInstance(instanceId)
-        if instance != None:
-            for tag in instance['Tags']:
-                tagKey = tag['Key']
-                if tagKey=='Allocated' and tag['Value']=='false':
-                    try :
-                        response = self.ec2_client.create_tags(
-                            Resources=[
-                                instanceId,
-                            ],
-                            Tags=[
-                                {
-                                    'Key': 'Allocated',
-                                    'Value': 'true'
-                                },
-                            ]
-                        )
-                        return response
-                    except Exception as err:
-                        return None
+        if instance is None:
+            return None
+        for tag in instance['Tags']:
+            tagKey = tag['Key']
+            if tagKey=='Allocated' and tag['Value']=='false':
+                try :
+                    response = self.ec2_client.create_tags(
+                        Resources=[
+                            instanceId,
+                        ],
+                        Tags=[
+                            {
+                                'Key': 'Allocated',
+                                'Value': 'true'
+                            },
+                        ]
+                    )
+                    return response
+                except Exception as err:
+                    print(message)
+                    print (err.args)
+                    return None
+        return None
         
-
     def findInstance(self ,instanceId):
         if instanceId and isinstance(instanceId, six.string_types) and  instanceId.strip():
             try:
@@ -134,6 +139,8 @@ class InstanceRequestHandler:
                         if outputKey == key:
                             return output['OutputValue']
                     except Exception as err:
+                        print(message)
+                        print (err.args)
                         return None
         else:
             return None
@@ -156,6 +163,7 @@ class InstanceRequestHandler:
             if  (stackId is None) or (stackUrl is None) :
                 print (instanceTags)
                 raise TypeError
+            msg_id = []
             messages = IRH.receiveMessage()
             if(messages == 0):
                 return 200
@@ -179,9 +187,9 @@ class InstanceRequestHandler:
                             message = "{0}\n".format(err)
                             print(message)
                             return None
-                        messageBody = json.dumps(m['body'])
+                        messageBody = json.dumps(message['Body'])
                         
-                        response = IRH.sendMessage(stackId,stackUrl,messagebody)
+                        response = IRH.sendMessage(stackId,stackUrl,messageBody)
                         if response  is None :
                             raise TypeError
                         
