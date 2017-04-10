@@ -8,6 +8,12 @@ import ast
 import uuid
 
 
+os.environ['stack_count'] = '5'
+os.environ['template_bucket_name'] = 'online-trial-control-tes-onlinetrialstacktemplate-ak21n1yv3vdc'
+os.environ['stage'] = 'test'
+
+
+
 class TrialStackBuilder:
     def __init__(self):
         try:
@@ -18,6 +24,7 @@ class TrialStackBuilder:
             message = "{0}\n".format(err)
             print(message)
             raise err
+
     def listStack(self ):
         stackList = []
         try:
@@ -38,18 +45,19 @@ class TrialStackBuilder:
                     print("The stack {} is still creating".format(stack['StackName']))
                     count +=1
                 elif stack['StackStatus']=="CREATE_COMPLETE" :
-                    instanceId = self.findInstanceId(stack['Outputs'])
-                    if instanceId == None :
-                        raise TypeError
-                    instance = self.findInstance(instanceId)
-                    if instance == None:
-                        raise TypeError
-                    unassigned = self.findUnassignedInstance(instance['Tags'])
-                    if unassigned == None:
-                        raise TypeError
-                    if unassigned == True :   
-                        count += 1 
-                        print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
+                    print("The stack {} is still creating".format(stack['StackName']))
+                    # instanceId = self.findInstanceId(stack['Outputs'])
+                    # if instanceId == None :
+                    #     raise TypeError
+                    # instance = self.findInstance(instanceId)
+                    # if instance == None:
+                    #     raise TypeError
+                    # unassigned = self.findUnassignedInstance(instance['Tags'])
+                    # if unassigned == None:
+                    #     raise TypeError
+                    # if unassigned == True :   
+                    #     count += 1 
+                    #     print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
         except Exception as err:
             message = "{0}\n".format(err)
             print(message)
@@ -156,13 +164,13 @@ class TrialStackBuilder:
                         response = TSB.createStack()
                         if response == None:
                             raise TypeError
-                else :
+                else:
                     print ('Number of stacks to be created: '+ str(0))
                     print("All OK")
                     return 200
-            
             else:
                 TSB.createStack()
+                return 200
     
         except Exception as err:
             message = "{0}\n".format(err)
