@@ -15,22 +15,15 @@ from InstanceRequestHandlerLambda import InstanceRequestHandler
 import unittest
 
 IRH = InstanceRequestHandler()
-message = None
-stackList = None
-trialStackl = None
-stackId = None
-stackUrl = None
-instanceId = None
+
 
 class TestInstanceRequestHandler(unittest.TestCase):
     # @mock_lambda
-    # def test_run(self):
-        # code = IRH.run()
-        # self.assertEquals(code, 200)
+    # def test_run_expectsFail(self):
+    #     self.build_stack()
+    #     code = IRH.run()
+    #     self.assertEquals(code, 'FAILURE')
     #     print("Test 'lambda handler' : passed")
-
-
-
     @mock_cloudformation
     def build_stack(self):
         dummy_template = {
@@ -169,8 +162,8 @@ class TestInstanceRequestHandler(unittest.TestCase):
     def test_sendMessage(self):
         original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
         
-        original_message['stack_id'] = stackId
-        original_message['stack_url'] = stackUrl
+        original_message['stack_id'] = 'i-1234'
+        original_message['stack_url'] =  "https://requesttest.trial.alfresco.com/online-trial"
         sqs = boto3.resource('sqs')
         queue = sqs.create_queue(QueueName='OnlineTrialRequestSQS')
         response = queue.send_message(MessageBody=json.dumps(original_message))

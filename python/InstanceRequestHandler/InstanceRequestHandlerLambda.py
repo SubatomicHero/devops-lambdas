@@ -5,6 +5,10 @@ import boto3
 import json
 import six
 
+# os.environ['sqs_read_url'] = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-F546SLFQSE7Q'
+# os.environ['sqs_publish_url']='https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1E7SKEZWS698'
+
+
 class InstanceRequestHandler:
     def __init__(self):
         try:
@@ -21,6 +25,7 @@ class InstanceRequestHandler:
         try :
             response = self.sqs_client.receive_message(
                 QueueUrl=os.environ['sqs_read_url'],
+                
             )
             print (response)
             if "Messages" in response :
