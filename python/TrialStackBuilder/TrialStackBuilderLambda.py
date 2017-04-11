@@ -45,19 +45,21 @@ class TrialStackBuilder:
                     print("The stack {} is still creating".format(stack['StackName']))
                     count +=1
                 elif stack['StackStatus']=="CREATE_COMPLETE" :
-                    print("The stack {} is still creating".format(stack['StackName']))
-                    # instanceId = self.findInstanceId(stack['Outputs'])
-                    # if instanceId == None :
-                    #     raise TypeError
-                    # instance = self.findInstance(instanceId)
-                    # if instance == None:
-                    #     raise TypeError
-                    # unassigned = self.findUnassignedInstance(instance['Tags'])
-                    # if unassigned == None:
-                    #     raise TypeError
-                    # if unassigned == True :   
-                    #     count += 1 
-                    #     print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
+                    instanceId = self.findInstanceId(stack['Outputs'])
+                    if instanceId == None :
+                        raise TypeError
+                    print("The InstanceId of the stack is: {}".format(instanceId))
+                    instance = self.findInstance(instanceId)
+                    if instance == None:
+                        raise TypeError
+                    unassigned = self.findUnassignedInstance(instance['Tags'])
+                    if unassigned == None:
+                        raise TypeError
+                    if unassigned == True :   
+                        count += 1 
+                        print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
+                    else:
+                        print("The stack {}  is a not an unassigned stack.".format(stack['StackName']))
         except Exception as err:
             message = "{0}\n".format(err)
             print(message)
@@ -76,9 +78,10 @@ class TrialStackBuilder:
                         return True
                     elif tag['Value']=='true':
                         return False
+            return False
                 
         else :
-            return None
+            return False
                     
     
         
@@ -116,19 +119,20 @@ class TrialStackBuilder:
             
                 
     def createStack(self):
-        name = str(uuid.uuid1())
-        name =  'TrialStack'+name.replace('-','')
-        branch = 'develop' if os.environ['stage'] == 'test' else 'master'
-        filename = "online-trial-stack-{}.yaml".format(branch)
-        URL = "https://s3.amazonaws.com/{}/{}".format(os.environ['template_bucket_name'], filename)
         try:
+            name = str(uuid.uuid1())
+            name =  'TrialStack'+name.replace('-','')
+            branch = 'develop' if os.environ['stage'] == 'test' else 'master'
+            filename = "online-trial-stack-{}.yaml".format(branch)
+            URL = "https://s3.amazonaws.com/{}/{}".format(os.environ['template_bucket_name'], filename)
+            print(URL)
             response = self.cloud_client.create_stack(
                 StackName=name,
                 TemplateURL=URL,
                 Parameters=[
                 {
                     'ParameterKey':'ControlArchitectureName',
-                    'ParameterValue':"online-trial-control-{}".format(os.environ['stage'],)
+                    'ParameterValue':"online-trial-stack-{}".format(branch)
                 },
                 ],
                 Capabilities=[
@@ -136,11 +140,11 @@ class TrialStackBuilder:
                 ],
                 OnFailure='DELETE',
             )   
-            return response
+            print("The stack with name {} is created and its StackId {} is ".format(name, response['StackId']))
+            return response['StackId']
         except Exception as err:
-                message = "{0}\n".format(err)
-                print(message)
-                return None
+            message = "{0}\n".format(err)
+            return None
         
     def run(self,event):
         try :
@@ -150,13 +154,12 @@ class TrialStackBuilder:
                 stack_count = ast.literal_eval(os.environ['stack_count'])
             except Exception as err:
                 raise err
-                
             source = event['source']
             if source == 'aws.events':
                 stackList = TSB.listStack()
                 numberStack = TSB.countUnassignedStack(stackList)
                 if numberStack == None:
-                    raise TypeError
+                    raise TypeError  
                 if(numberStack < stack_count):
                     stackToCreate = stack_count - numberStack 
                     print ('Number of stacks to be created: '+ str(stackToCreate))
@@ -169,7 +172,9 @@ class TrialStackBuilder:
                     print("All OK")
                     return 200
             else:
-                TSB.createStack()
+                response = TSB.createStack()
+                if response == None:
+                    raise TypeError
                 return 200
     
         except Exception as err:
