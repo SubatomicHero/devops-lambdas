@@ -8,7 +8,7 @@ import requests
 import sure  # noqa
 import time
 import json 
-from moto import  mock_sqs, mock_ec2, mock_cloudformation, mock_lambda
+from moto import  mock_sqs, mock_ec2, mock_cloudformation
 from nose.tools import assert_raises
 from InstanceRequestHandlerLambda import InstanceRequestHandler
 
@@ -18,14 +18,66 @@ IRH = InstanceRequestHandler()
 
 
 class TestInstanceRequestHandler(unittest.TestCase):
-    # @mock_lambda
-    # def test_run_expectsFail(self):
-    #     self.build_stack()
-    #     code = IRH.run()
-    #     self.assertEquals(code, 'FAILURE')
-    #     print("Test 'lambda handler' : passed")
+    
     @mock_cloudformation
-    def build_stack(self):
+    @mock_ec2
+    @mock_sqs
+    def test_run_noNessage(self):
+        # build dummy read queue
+        sqs = boto3.resource('sqs', region_name='us-east-1')
+        q = sqs.create_queue(QueueName='readqueue')
+        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
+        
+
+        q1 = sqs.create_queue(QueueName='publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
+
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
+        
+        # build dummy instance
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+
+        # test that with no messages, returns 200
+        self.build_stack(instance.id)
+        code = local_instance.run()
+        self.assertEquals(code, 200)
+        print("Test 'run function with no message' : passed")
+    
+    @mock_cloudformation
+    @mock_ec2
+    @mock_sqs
+    def test_run_withMessage(self):
+        # build dummy read queue
+        sqs = boto3.resource('sqs', region_name='us-east-1')
+        q = sqs.create_queue(QueueName='readqueue')
+        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
+        messageBody=json.dumps(original_message)
+        q.send_message(MessageBody=messageBody)
+
+        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
+
+        q1 = sqs.create_queue(QueueName='publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
+        
+        # build dummy instance
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+
+        # test that with no messages, returns 200
+        self.build_stack(instance.id)
+        code = local_instance.run()
+        self.assertEquals(code, 200)
+        print("Test 'run function with message' : passed")
+    
+    @mock_ec2
+    def add_servers(self, ami_id="ami-12345abc"):
+        conn = boto.connect_ec2('the_key', 'the_secret')
+        return conn.run_instances(ami_id).instances[0]
+
+    @mock_cloudformation
+    def build_stack(self, instance_id="i-011e00f871fdcac11"):
         dummy_template = {
             "AWSTemplateFormatVersion": "2010-09-09",
             "Description": "Stack 1",
@@ -60,7 +112,7 @@ class TestInstanceRequestHandler(unittest.TestCase):
                 },
                 "InstanceId": {
                     "Description": "The id of the ec2 instance created by this stack",
-                    "Value": "i-011e00f871fdcac11"
+                    "Value": instance_id
                 },
             }
         }
@@ -118,25 +170,24 @@ class TestInstanceRequestHandler(unittest.TestCase):
     @mock_cloudformation
     @mock_ec2
     def test_findInstance(self):
-        self.build_stack()
-        stackList = IRH.describeStack()
-        trialStack = IRH.findStack(stackList)
-        instanceId = IRH.findOutputKeyValue(trialStack['Outputs'], 'InstanceId')
-        instance = IRH.findInstance(instanceId)
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
+        instance = IRH.findInstance(instance.id)
 
         assert instance['ResponseMetadata']['HTTPStatusCode'] == 200
         assert instance['ResponseMetadata']["RetryAttempts"] == 0
         print("Test 'Find Instance' : passed")
 
     @mock_ec2
+    @mock_cloudformation
     def test_allocateInstance(self):
-        self.build_stack()
-        stackList = IRH.describeStack()
-        trialStack = IRH.findStack(stackList)
-        instanceId = IRH.findOutputKeyValue(trialStack['Outputs'], 'InstanceId')
-        instance = IRH.findInstance(instanceId)
-        tags = IRH.allocateInstance(instance)
-        assert tags == None
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
+        tags = IRH.allocateInstance(instance.id)
+        assert tags['ResponseMetadata']['HTTPStatusCode'] == 200
+        assert tags['ResponseMetadata']["RetryAttempts"] == 0
         
         print("Test 'Allocate Stack ' : passed")
 
@@ -158,10 +209,10 @@ class TestInstanceRequestHandler(unittest.TestCase):
         assert messageResult == json.dumps(original_message)
         print("Test 'received message' : passed")
         return json.loads(messageResult)
+
     @mock_sqs
     def test_sendMessage(self):
         original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
-        
         original_message['stack_id'] = 'i-1234'
         original_message['stack_url'] =  "https://requesttest.trial.alfresco.com/online-trial"
         sqs = boto3.resource('sqs')
