@@ -5,33 +5,33 @@ import boto3
 import json
 import six
 
-# os.environ['sqs_read_url'] = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-F546SLFQSE7Q'
-# os.environ['sqs_publish_url']='https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1E7SKEZWS698'
+os.environ['sqs_read_url'] = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-F546SLFQSE7Q'
+os.environ['sqs_publish_url'] ='https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1E7SKEZWS698'
 
 
 class InstanceRequestHandler:
-    def __init__(self):
+    def __init__(self, read_url= os.environ['sqs_read_url'], publish_url=os.environ['sqs_publish_url']):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.sqs_client = boto3.client('sqs')
             self.sqs_res = boto3.resource('sqs')
             self.ec2_client = boto3.client('ec2')
+            self.read_url = read_url
+            self.publish_url = publish_url
         except Exception as err:
             message = "{0}\n".format(err)
             print(message)
             raise err
         
-    def receiveMessage(self ):
+    def receiveMessage(self):
         try :
             response = self.sqs_client.receive_message(
-                QueueUrl=os.environ['sqs_read_url'],
-                
+                QueueUrl=self.read_url
             )
-            print (response)
             if "Messages" in response :
                 messages = response['Messages']
                 if (len(messages) > 0):
-                    print('Recieved messages: {}'.format(messages))
+                    print('Recieved messages: {}'.format(messages[0]['Body']))
                     return messages
                 else :
                     print ('No messages to read')
@@ -53,7 +53,7 @@ class InstanceRequestHandler:
             message['stack_url'] = stackUrl
             try:
                 response = self.sqs_client.send_message(
-                    QueueUrl=os.environ['sqs_publish_url'],
+                    QueueUrl=self.publish_url ,
                     MessageBody=json.dumps(message),
                 )
                 return response
@@ -111,7 +111,9 @@ class InstanceRequestHandler:
                     print(message)
                     print (err.args)
                     return None
-        return None
+            elif tagKey=='Allocated' and tag['Value']=='True':
+                return 0
+        return 'Not found'
         
     def findInstance(self ,instanceId):
         if instanceId and isinstance(instanceId, six.string_types) and  instanceId.strip():
@@ -152,24 +154,34 @@ class InstanceRequestHandler:
             
     def run(self):
         try :
-            stackList = IRH.describeStack()
+            stackList = self.describeStack()
             if stackList is None:
                 raise TypeError
-            trialStack = IRH.findStack(stackList)
+            trialStack = self.findStack(stackList)
             if trialStack is None:
                 raise TypeError
             stackId = trialStack['StackId']
             trialStackOutputs = trialStack['Outputs']
-            stackUrl = IRH.findOutputKeyValue(trialStackOutputs, 'Url')
-            instanceId = IRH.findOutputKeyValue(trialStackOutputs, 'InstanceId')
-            if instanceId is None:
-                raise TypeError
-            instanceTags = IRH.allocateInstance(instanceId)
+            stackUrl = self.findOutputKeyValue(trialStackOutputs, 'Url')
             if  (stackId is None) or (stackUrl is None) :
-                print (instanceTags)
                 raise TypeError
+            instanceId = self.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+            if instanceId is None :
+                raise TypeError
+            print("The StackId of the stack is: {}".format(stackId))
+            print("The StackURL of the stack is: {}".format(instanceId))
+            print("The InstanceId of the stack is: {}".format(stackUrl))
+            instanceTags = self.allocateInstance(instanceId)
+            if instanceTags is None:
+                raise TypeError
+            if instanceTags == 0:
+                print('The instance is already allocated')
+            elif instanceTags == 'Not found':
+                print('The instance doesnt have any tag Allocated.' )
+            else:
+                print('The instance is allocated now')
             msg_id = []
-            messages = IRH.receiveMessage()
+            messages = self.receiveMessage()
             if(messages == 0):
                 return 200
             elif messages is None :
@@ -186,15 +198,15 @@ class InstanceRequestHandler:
                     else:
                         msg_id.append(message['MessageId'])
                         unread = True
+                        print ('The Message {} is read.'.format(message['MessageId']))
                         try:
-                            m = self.sqs_res.Message('sqs_read_url',message['ReceiptHandle'])
+                            m = self.sqs_res.Message(self.read_url,message['ReceiptHandle'])
                         except Exception as err:
                             message = "{0}\n".format(err)
-                            print(message)
                             return None
                         messageBody = json.dumps(message['Body'])
                         
-                        response = IRH.sendMessage(stackId,stackUrl,messageBody)
+                        response = self.sendMessage(stackId,stackUrl,messageBody)
                         if response  is None :
                             raise TypeError
                         
