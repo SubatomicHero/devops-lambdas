@@ -15,14 +15,9 @@ To execute all the tests on mock_file, you just have to do:
 
         python mock_file.py on terminal
 
-To execute only the lambda_hander test, you just have to do:
-
-        echo "test_lambda_handler()" | python -i mock_file.py on terminal
-
 To execute only the insertion of data in dynamo test, you just have to do:
 
-        echo "test_insert_into_dynamo()" | python -i mock_file.py on terminal
-
+        echo "test_insert_dynamo()" | python -i mock_file.py on terminal
 
 To execute only the sending of the marketo result to the SQS service test, you just have to do:
 
