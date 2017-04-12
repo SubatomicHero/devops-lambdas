@@ -125,7 +125,6 @@ class TrialStackBuilder:
             branch = 'develop' if os.environ['stage'] == 'test' else 'master'
             filename = "online-trial-stack-{}.yaml".format(branch)
             URL = "https://s3.amazonaws.com/{}/{}".format(os.environ['template_bucket_name'], filename)
-            print(URL)
             response = self.cloud_client.create_stack(
                 StackName=name,
                 TemplateURL=URL,
@@ -138,7 +137,7 @@ class TrialStackBuilder:
                 Capabilities=[
                     'CAPABILITY_IAM',
                 ],
-                OnFailure='DELETE',
+                OnFailure='ROLLBACK',
             )   
             print("The stack with name {} is created and its StackId {} is ".format(name, response['StackId']))
             return response['StackId']
