@@ -115,7 +115,7 @@ class InstanceRequestHandler:
                     print(message)
                     print (err.args)
                     return None
-            elif tagKey=='Allocated' and tag['Value']=='True':
+            elif tagKey=='Allocated' and tag['Value']=='true':
                 return 0
         return 'Not found'
         
