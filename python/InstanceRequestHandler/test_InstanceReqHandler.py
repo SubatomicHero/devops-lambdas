@@ -18,6 +18,11 @@ IRH = InstanceRequestHandler()
 
 
 class TestInstanceRequestHandler(unittest.TestCase):
+    def test_instance(self):
+        self.assertIsNotNone(IRH.cloud_client)
+        self.assertIsNotNone(IRH.ec2_client)
+        self.assertIsNotNone(IRH.sqs_client)
+        self.assertIsNotNone(IRH.sqs_res)
     
     @mock_cloudformation
     @mock_ec2
@@ -235,10 +240,10 @@ class TestInstanceRequestHandler(unittest.TestCase):
         instance = self.add_servers()
         instance.add_tag('Allocated', 'false')
         self.build_stack(instance.id)
-        instance = IRH.findInstance(instance.id)
+        instance_test = IRH.findInstance(instance.id)
 
-        assert instance['ResponseMetadata']['HTTPStatusCode'] == 200
-        assert instance['ResponseMetadata']["RetryAttempts"] == 0
+        assert instance_test['ResponseMetadata']['HTTPStatusCode'] == 200
+        assert instance_test['ResponseMetadata']["RetryAttempts"] == 0
         print("Test 'Find Instance' : passed")
 
     @mock_ec2

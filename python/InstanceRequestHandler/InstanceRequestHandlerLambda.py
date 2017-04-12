@@ -7,7 +7,7 @@ import six
 
 os.environ['sqs_read_url'] = 'https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialRequestSQS-F546SLFQSE7Q'
 os.environ['sqs_publish_url'] ='https://sqs.us-east-1.amazonaws.com/179276412545/online-trial-control-test-OnlineTrialInstanceRequestSQS-1E7SKEZWS698'
-
+os.environ['stage'] = 'test'
 
 class InstanceRequestHandler:
     def __init__(self, read_url= os.environ['sqs_read_url'], publish_url=os.environ['sqs_publish_url']):
@@ -85,7 +85,7 @@ class InstanceRequestHandler:
                 for output in stack['Outputs']:
                     if output['OutputKey']=="Type" and output['OutputValue']=="Trial" :
                         trial = True
-                    if output['OutputKey']=="Stage" and output['OutputValue']=="test" :
+                    if output['OutputKey']=="Stage" and output['OutputValue']==os.environ['stage']  :
                         test = True
                 if trial and test :
                     return stack
