@@ -6,9 +6,9 @@ import os
 import boto3
 import time
 
-dynamo_client = boto3.client('dynamodb')
-sqs_client = boto3.client('sqs')
-sns_client = boto3.client('sns')
+dynamo_client = boto3.client('dynamodb', region_name='us-east-1')
+sqs_client = boto3.client('sqs', region_name='us-east-1')
+sns_client = boto3.client('sns', region_name='us-east-1')
 
 print('Getting message from SNS')
 
@@ -35,9 +35,9 @@ def lambda_handler(event, context):
             if response:
                 try:
                     fulfilled_test = 'y'
-                    ins_db = handler.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts)
+                    ins_db = handler.insert_into_dynamo(dynamo_client, lead_id, response, fulfilled_test, count_attempts)
                     if ins_db:
-                        ins_sqs = handler.send_to_SQS(response)
+                        ins_sqs = handler.send_to_SQS(sqs_client, response)
                         if ins_sqs:
                             return "Inserted fulfilled in dynamodb and SQS"
                         return "failed to insert in SQS"
@@ -47,7 +47,7 @@ def lambda_handler(event, context):
             else:
                 try:
                     fulfilled_test = 'n'
-                    ins_db = handler.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts)
+                    ins_db = handler.insert_into_dynamo(dynamo_client, lead_id, response, fulfilled_test, count_attempts)
                     if ins_db:
                         # notify IM solution
                         return "Inserted unfulfilled in dynamodb"
@@ -73,11 +73,11 @@ class TrialRequestHandler:
             print("an error has been found with the details")
 
     # function to insert the request in the dynamodB table for the Trial Request Handler
-    def insert_into_dynamo(self, lead_id, response_m, fulfilled_test, count_attempts):
+    def insert_into_dynamo(self, dynamo_c, lead_id, response_m, fulfilled_test, count_attempts):
         try:
             curr_date = time.strftime("%d/%m/%Y")
             if not response_m:
-                response = dynamo_client.update_item(
+                response = dynamo_c.update_item(
                     TableName=os.environ['trial_request_table'],
                     Key={
                         'LeadId': {"N": str(lead_id)},
@@ -104,7 +104,7 @@ class TrialRequestHandler:
             else:
                 dt = datetime.strptime(response_m['result'][0]['createdAt'], "%Y-%m-%dT%H:%M:%SZ")
                 request_time = int(time.mktime(dt.timetuple()) + (dt.microsecond / 1000000.0))
-                response = dynamo_client.update_item(
+                response = dynamo_c.update_item(
                     TableName=os.environ['trial_request_table'],
                     Key={
                         'LeadId': {"N": str(lead_id)},
@@ -132,9 +132,9 @@ class TrialRequestHandler:
             raise IOError('an error has been found. Data not inserted into the table')
 
     # function to send the response from marketo to the SQS
-    def send_to_SQS(self,response):
+    def send_to_SQS(self,sqs_c, response):
         try:
-            resp = sqs_client.send_message(QueueUrl=os.environ['sqs_url'], MessageBody=json.dumps(response))
+            resp = sqs_c.send_message(QueueUrl=os.environ['sqs_url'], MessageBody=json.dumps(response))
             if resp:
                 return resp
             return None
