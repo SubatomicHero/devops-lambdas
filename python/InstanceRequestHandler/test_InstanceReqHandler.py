@@ -1,22 +1,13 @@
-import boto
-import boto3
-import botocore.exceptions
+import boto, boto3, botocore.exceptions, requests, sure , time, json, unittest
 from boto.exception import SQSError
 from boto.sqs.message import RawMessage, Message
-
-import requests
-import sure  # noqa
-import time
-import json 
 from moto import  mock_sqs, mock_ec2, mock_cloudformation
 from nose.tools import assert_raises
 from InstanceRequestHandlerLambda import InstanceRequestHandler
 
-import unittest
-
 IRH = InstanceRequestHandler()
-
-
+original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
+       
 class TestInstanceRequestHandler(unittest.TestCase):
     def test_instance(self):
         self.assertIsNotNone(IRH.cloud_client)
@@ -116,7 +107,6 @@ class TestInstanceRequestHandler(unittest.TestCase):
         # build dummy read queue
         sqs = boto3.resource('sqs', region_name='us-east-1')
         q = sqs.create_queue(QueueName='readqueue')
-        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
         messageBody=json.dumps(original_message)
         q.send_message(MessageBody=messageBody)
 
@@ -260,7 +250,6 @@ class TestInstanceRequestHandler(unittest.TestCase):
 
     @mock_sqs
     def test_receiveMessage(self):
-        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
         sqs = boto.connect_sqs('the_key', 'the_secret')
         queue = sqs.create_queue('OnlineTrialRequestSQS', visibility_timeout=60)
         messageBody=json.dumps(original_message)
@@ -279,7 +268,6 @@ class TestInstanceRequestHandler(unittest.TestCase):
 
     @mock_sqs
     def test_sendMessage(self):
-        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
         original_message['stack_id'] = 'i-1234'
         original_message['stack_url'] =  "https://requesttest.trial.alfresco.com/online-trial"
         sqs = boto3.resource('sqs')
