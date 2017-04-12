@@ -79,7 +79,6 @@ class TestInstanceRequestHandler(unittest.TestCase):
         # build dummy read queue
         sqs = boto3.resource('sqs', region_name='us-east-1')
         q = sqs.create_queue(QueueName='readqueue')
-        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
         messageBody=json.dumps(original_message)
         q.send_message(MessageBody=messageBody)
 

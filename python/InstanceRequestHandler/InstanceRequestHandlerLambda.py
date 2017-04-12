@@ -214,8 +214,12 @@ class InstanceRequestHandler:
                         if response  is None :
                             raise TypeError
                         
-                           
-                        m.delete()
+                        try:
+                            m.delete()
+                        except Exception as err:
+                            # message = "{0}\n".format(err)
+                            return 200
+                        
             
             
     
