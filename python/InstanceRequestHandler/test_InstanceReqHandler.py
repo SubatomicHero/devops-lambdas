@@ -23,6 +23,7 @@ class TestInstanceRequestHandler(unittest.TestCase):
     @mock_ec2
     @mock_sqs
     def test_run_noNessage(self):
+        print ("--Test Run function--")
         # build dummy read queue
         sqs = boto3.resource('sqs', region_name='us-east-1')
         q = sqs.create_queue(QueueName='readqueue')
@@ -43,11 +44,42 @@ class TestInstanceRequestHandler(unittest.TestCase):
         code = local_instance.run()
         self.assertEquals(code, 200)
         print("Test 'run function with no message' : passed")
+
+    @mock_ec2
+    @mock_sqs
+    def test_run_noReadQueue(self):
+        print ("--Test Run function--")
+        # build dummy read queue
+        sqs = boto3.resource('sqs', region_name='us-east-1')
+        q = sqs.create_queue(QueueName='readqueue')
+        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
+        
+
+        q1 = sqs.create_queue(QueueName='publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
+
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
+        read_queue.delete()
+        
+        # build dummy instance
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+
+        # test that with no messages, returns 200
+        self.build_stack(instance.id)
+        code = local_instance.run()
+        self.assertEquals(code, 200)
+        print("Test 'run function with no read queue' : passed")
+
+        
+
+
     
     @mock_cloudformation
     @mock_ec2
     @mock_sqs
     def test_run_withMessage(self):
+        print ("--Test Run function--")
         # build dummy read queue
         sqs = boto3.resource('sqs', region_name='us-east-1')
         q = sqs.create_queue(QueueName='readqueue')
@@ -70,6 +102,36 @@ class TestInstanceRequestHandler(unittest.TestCase):
         code = local_instance.run()
         self.assertEquals(code, 200)
         print("Test 'run function with message' : passed")
+
+    @mock_cloudformation
+    @mock_ec2
+    @mock_sqs
+    def test_run_withMessageNoPublishQueue(self):
+        print ("--Test Run function--")
+        # build dummy read queue
+        sqs = boto3.resource('sqs', region_name='us-east-1')
+        q = sqs.create_queue(QueueName='readqueue')
+        original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
+        messageBody=json.dumps(original_message)
+        q.send_message(MessageBody=messageBody)
+
+        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
+
+        q1 = sqs.create_queue(QueueName='publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
+        publish_queue.delete()
+        
+        # build dummy instance
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+
+        # test that with no messages, returns 200
+        self.build_stack(instance.id)
+        code = local_instance.run()
+        self.assertEquals(code, 200)
+        print("Test 'run function with message and no publish queue' : passed")
+    
     
     @mock_ec2
     def add_servers(self, ami_id="ami-12345abc"):

@@ -39,10 +39,11 @@ class InstanceRequestHandler:
             else :
                 print ('No messages to read')
                 return 0
-        except Exception as err:
-            print ('error')
-            message = "{0}\n".format(err)
-            print(message)
+        except AttributeError :
+            print('No queue exists to receive a message')
+            return 0
+        except Exception  as e:
+            print(type(e))
             return None
         
     def sendMessage(self ,stackId, stackUrl, originalmessage):
@@ -57,6 +58,9 @@ class InstanceRequestHandler:
                     MessageBody=json.dumps(message),
                 )
                 return response
+            except AttributeError :
+                print('No queue exists to send a  message')
+                return 0
             except Exception as err:
                 return None
         else:
