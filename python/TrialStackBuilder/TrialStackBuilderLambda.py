@@ -7,19 +7,19 @@ import six
 import ast
 import uuid
 
-
 os.environ['stack_count'] = '5'
 os.environ['template_bucket_name'] = 'online-trial-control-tes-onlinetrialstacktemplate-ak21n1yv3vdc'
 os.environ['stage'] = 'test'
 
-
-
 class TrialStackBuilder:
-    def __init__(self):
+    def __init__(self,bucketname=os.environ['template_bucket_name'],stage = os.environ['stage']):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.ec2_client = boto3.client('ec2')
-            self.s3_client = boto3.client('s3')
+            self.s3_client= boto3.client('s3')
+            self.bucketname = bucketname
+            self.stage = stage
+            self.template = None
         except Exception as err:
             message = "{0}\n".format(err)
             print(message)
@@ -67,8 +67,6 @@ class TrialStackBuilder:
         else:
             return count
             
-    
-    
     def findUnassignedInstance(self ,instanceTags):
         if instanceTags != None:
             for tag in instanceTags:
@@ -83,7 +81,6 @@ class TrialStackBuilder:
         else :
             return False
                     
-    
         
     def findInstanceId(self ,stackOutputs):
         if stackOutputs :
@@ -117,17 +114,31 @@ class TrialStackBuilder:
         else:
             return None
             
-                
+    def getTemplate(self):
+        branch = 'develop' if self.stage == 'test' else 'master'
+        filename = "online-trial-stack-{}.yaml".format(branch)
+        fileToSave = 'temp.yaml'
+        
+        try :
+            response = self.s3_client.get_object(
+                Bucket=self.bucketname,
+                Key=filename
+            )
+            template = response['Body'].read()
+            return template
+        except Exception as err:
+            message = "{0}\n".format(err)
+            print(message)
+            return None
+                     
     def createStack(self):
         try:
+            branch = 'develop' if self.stage == 'test' else 'master'
             name = str(uuid.uuid1())
             name =  'TrialStack'+name.replace('-','')
-            branch = 'develop' if os.environ['stage'] == 'test' else 'master'
-            filename = "online-trial-stack-{}.yaml".format(branch)
-            URL = "https://s3.amazonaws.com/{}/{}".format(os.environ['template_bucket_name'], filename)
             response = self.cloud_client.create_stack(
                 StackName=name,
-                TemplateURL=URL,
+                TemplateBody = self.template,
                 Parameters=[
                 {
                     'ParameterKey':'ControlArchitectureName',
@@ -139,10 +150,10 @@ class TrialStackBuilder:
                 ],
                 OnFailure='ROLLBACK',
             )   
-            print("The stack with name {} is created and its StackId {} is ".format(name, response['StackId']))
             return response['StackId']
         except Exception as err:
             message = "{0}\n".format(err)
+            print(message)
             return None
         
     def run(self,event):
@@ -155,25 +166,34 @@ class TrialStackBuilder:
                 raise err
             source = event['source']
             if source == 'aws.events':
-                stackList = TSB.listStack()
-                numberStack = TSB.countUnassignedStack(stackList)
+                self.template = self.getTemplate()
+                print ('Recieved the template from S3 Bucket')
+                stackList = self.listStack()
+                numberStack = self.countUnassignedStack(stackList)
                 if numberStack == None:
                     raise TypeError  
                 if(numberStack < stack_count):
                     stackToCreate = stack_count - numberStack 
                     print ('Number of stacks to be created: '+ str(stackToCreate))
                     for i in range(stackToCreate):
-                        response = TSB.createStack()
+                        response = self.createStack()
+                        print (response)
                         if response == None:
                             raise TypeError
+                        else : 
+                            print("The stack is created and its StackId is {} ".format(response))
                 else:
-                    print ('Number of stacks to be created: '+ str(0))
+                    print ('There is already {} unassigned stacks : '+ str(0))
                     print("All OK")
                     return 200
             else:
-                response = TSB.createStack()
+                self.template = self.getTemplate()
+                print ('Recieved the template from S3 Bucket')
+                response = self.createStack()
                 if response == None:
                     raise TypeError
+                else : 
+                    print("The stack with name {} is created and its StackId is {} ".format(name, response))
                 return 200
     
         except Exception as err:
