@@ -20,120 +20,86 @@ class TestInstanceRequestHandler(unittest.TestCase):
     @mock_sqs
     def test_run_noNessage(self):
         print ("--Test Run function--")
-        # build dummy read queue
-        sqs = boto3.resource('sqs', region_name='us-east-1')
-        q = sqs.create_queue(QueueName='readqueue')
-        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
-        
-
-        q1 = sqs.create_queue(QueueName='publishqueue')
-        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
-
-        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
-        
-        # build dummy instance
+        sqs = boto3.resource('sqs', region_name = 'us-east-1')
+        q = sqs.create_queue(QueueName = 'readqueue')
+        read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+        q1 = sqs.create_queue(QueueName = 'publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
         instance = self.add_servers()
         instance.add_tag('Allocated', 'false')
-
-        # test that with no messages, returns 200
         self.build_stack(instance.id)
         code = local_instance.run()
         self.assertEquals(code, 200)
         print("Test 'run function with no message' : passed")
 
-    @mock_ec2
-    @mock_sqs
-    def test_run_noReadQueue(self):
-        print ("--Test Run function--")
-        # build dummy read queue
-        sqs = boto3.resource('sqs', region_name='us-east-1')
-        q = sqs.create_queue(QueueName='readqueue')
-        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
-        
+    # @mock_ec2
+    # @mock_sqs
+    # def test_run_noReadQueue(self):
+    #     print ("--Test Run function--")
+    #     sqs = boto3.resource('sqs', region_name = 'us-east-1')
+    #     q = sqs.create_queue(QueueName = 'readqueue')
+    #     read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+    #     q1 = sqs.create_queue(QueueName = 'publishqueue')
+    #     publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+    #     local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
+    #     read_queue.delete()
+    #     instance = self.add_servers()
+    #     instance.add_tag('Allocated', 'false')
+    #     self.build_stack(instance.id)
+    #     code = local_instance.run()
+    #     self.assertEquals(code, 200)
+    #     print("Test 'run function with no read queue' : passed")
 
-        q1 = sqs.create_queue(QueueName='publishqueue')
-        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
-
-        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
-        read_queue.delete()
-        
-        # build dummy instance
-        instance = self.add_servers()
-        instance.add_tag('Allocated', 'false')
-
-        # test that with no messages, returns 200
-        self.build_stack(instance.id)
-        code = local_instance.run()
-        self.assertEquals(code, 200)
-        print("Test 'run function with no read queue' : passed")
-
-        
-
-
-    
     @mock_cloudformation
     @mock_ec2
     @mock_sqs
     def test_run_withMessage(self):
         print ("--Test Run function--")
-        # build dummy read queue
-        sqs = boto3.resource('sqs', region_name='us-east-1')
-        q = sqs.create_queue(QueueName='readqueue')
-        messageBody=json.dumps(original_message)
-        q.send_message(MessageBody=messageBody)
-
-        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
-
-        q1 = sqs.create_queue(QueueName='publishqueue')
-        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
-        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
-        
-        # build dummy instance
+        sqs = boto3.resource('sqs', region_name = 'us-east-1')
+        q = sqs.create_queue(QueueName = 'readqueue')
+        messageBody = json.dumps(original_message)
+        q.send_message(MessageBody = messageBody)
+        read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+        q1 = sqs.create_queue(QueueName = 'publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
         instance = self.add_servers()
         instance.add_tag('Allocated', 'false')
-
-        # test that with no messages, returns 200
         self.build_stack(instance.id)
         code = local_instance.run()
         self.assertEquals(code, 200)
         print("Test 'run function with message' : passed")
 
-    @mock_cloudformation
-    @mock_ec2
-    @mock_sqs
-    def test_run_withMessageNoPublishQueue(self):
-        print ("--Test Run function--")
-        # build dummy read queue
-        sqs = boto3.resource('sqs', region_name='us-east-1')
-        q = sqs.create_queue(QueueName='readqueue')
-        messageBody=json.dumps(original_message)
-        q.send_message(MessageBody=messageBody)
-
-        read_queue = sqs.get_queue_by_name(QueueName='readqueue')
-
-        q1 = sqs.create_queue(QueueName='publishqueue')
-        publish_queue = sqs.get_queue_by_name(QueueName='publishqueue')
-        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url )
-        publish_queue.delete()
-        
-        # build dummy instance
-        instance = self.add_servers()
-        instance.add_tag('Allocated', 'false')
-
-        # test that with no messages, returns 200
-        self.build_stack(instance.id)
-        code = local_instance.run()
-        self.assertEquals(code, 200)
-        print("Test 'run function with message and no publish queue' : passed")
+    # @mock_cloudformation
+    # @mock_ec2
+    # @mock_sqs
+    # def test_run_withMessageNoPublishQueue(self):
+    #     print ("--Test Run function--")
+    #     sqs = boto3.resource('sqs', region_name = 'us-east-1')
+    #     q = sqs.create_queue(QueueName = 'readqueue')
+    #     messageBody = json.dumps(original_message)
+    #     q.send_message(MessageBody = messageBody)
+    #     read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+    #     q1 = sqs.create_queue(QueueName = 'publishqueue')
+    #     publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+    #     local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
+    #     publish_queue.delete()
+    #     instance = self.add_servers()
+    #     instance.add_tag('Allocated', 'false')
+    #     self.build_stack(instance.id)
+    #     code = local_instance.run()
+    #     self.assertEquals(code, 200)
+    #     print("Test 'run function with message and no publish queue' : passed")
     
     
     @mock_ec2
-    def add_servers(self, ami_id="ami-12345abc"):
+    def add_servers(self, ami_id = "ami-12345abc"):
         conn = boto.connect_ec2('the_key', 'the_secret')
         return conn.run_instances(ami_id).instances[0]
 
     @mock_cloudformation
-    def build_stack(self, instance_id="i-011e00f871fdcac11"):
+    def build_stack(self, instance_id = "i-011e00f871fdcac11"):
         dummy_template = {
             "AWSTemplateFormatVersion": "2010-09-09",
             "Description": "Stack 1",
@@ -172,15 +138,10 @@ class TestInstanceRequestHandler(unittest.TestCase):
                 },
             }
         }
-
-
         dummy_template_json = json.dumps(dummy_template)
-
-
-        # cf = boto3.client('cloudformation')
         return IRH.cloud_client.create_stack(
-            StackName="trial_stack",
-            TemplateBody=dummy_template_json,
+            StackName = "trial_stack",
+            TemplateBody = dummy_template_json,
         )
 
     @mock_cloudformation  
@@ -190,7 +151,6 @@ class TestInstanceRequestHandler(unittest.TestCase):
         stack = stackList[0]
         self.assertIsNotNone(stackList)
         self.assertEqual(len(stackList), 1)
-
         stack['StackStatus'].should.equal('CREATE_COMPLETE')
         print("Test 'describe stacks' : passed")
 
@@ -230,7 +190,6 @@ class TestInstanceRequestHandler(unittest.TestCase):
         instance.add_tag('Allocated', 'false')
         self.build_stack(instance.id)
         instance_test = IRH.findInstance(instance.id)
-
         assert instance_test['ResponseMetadata']['HTTPStatusCode'] == 200
         assert instance_test['ResponseMetadata']["RetryAttempts"] == 0
         print("Test 'Find Instance' : passed")
@@ -242,43 +201,32 @@ class TestInstanceRequestHandler(unittest.TestCase):
         instance.add_tag('Allocated', 'false')
         self.build_stack(instance.id)
         tags = IRH.allocateInstance(instance.id)
-        assert tags['ResponseMetadata']['HTTPStatusCode'] == 200
-        assert tags['ResponseMetadata']["RetryAttempts"] == 0
-        
+        assert tags == True
         print("Test 'Allocate Stack ' : passed")
 
     @mock_sqs
     def test_receiveMessage(self):
-        sqs = boto.connect_sqs('the_key', 'the_secret')
-        queue = sqs.create_queue('OnlineTrialRequestSQS', visibility_timeout=60)
+        sqs = boto3.resource('sqs', region_name = 'us-east-1')
+        q = sqs.create_queue(QueueName = 'readqueue')
         messageBody=json.dumps(original_message)
-        queue.write(queue.new_message(messageBody))
-
-        queue.count().should.equal(1)
-        messages = sqs.receive_message(queue, number_messages=1, visibility_timeout=0)
-
-        assert len(messages) == 1
-
-        queue.count().should.equal(1)
-        messageResult = messages[0].get_body() 
-        assert messageResult == json.dumps(original_message)
+        q.send_message(MessageBody = messageBody)
+        read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+        messageResult = IRH.receiveMessage(read_queue.url)
+        assert messageResult['Messages'][0]['Body'] == json.dumps(original_message)
         print("Test 'received message' : passed")
-        return json.loads(messageResult)
 
     @mock_sqs
     def test_sendMessage(self):
-        original_message['stack_id'] = 'i-1234'
-        original_message['stack_url'] =  "https://requesttest.trial.alfresco.com/online-trial"
-        sqs = boto3.resource('sqs')
-        queue = sqs.create_queue(QueueName='OnlineTrialRequestSQS')
-        response = queue.send_message(MessageBody=json.dumps(original_message))
+        stack_id = 'i-1234'
+        stack_url =  "https://requesttest.trial.alfresco.com/online-trial"
+        sqs = boto3.resource('sqs', region_name = 'us-east-1')
+        q1 = sqs.create_queue(QueueName = 'publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+        response = IRH.sendMessage(publish_queue.url, stack_id, stack_url, original_message)
         assert response['ResponseMetadata']['HTTPStatusCode'] == 200
         assert response['ResponseMetadata']["RetryAttempts"] == 0
         assert response.get('Failed') == None
-        # assert response.get('MD5OfMessageBody') == '7d8643aa0e8110fd8e26462e9e01600c'
         print("Test 'send message' : passed")
-        return response.get('Failed')
 
-  
 if __name__ == '__main__':
   unittest.main()
