@@ -24,26 +24,21 @@ class InstanceRequestHandler:
             raise err
         
     def receiveMessage(self):
-        try :
+        try:
             response = self.sqs_client.receive_message(
                 QueueUrl=self.read_url
             )
-            if "Messages" in response :
+            if "Messages" in response:
                 messages = response['Messages']
                 if (len(messages) > 0):
-                    print('Recieved messages: {}'.format(messages[0]['Body']))
+                    print('Received {} messages'.format(len(messages)))
                     return messages
-                else :
-                    print ('No messages to read')
-                    return 0
-            else :
-                print ('No messages to read')
-                return 0
-        except AttributeError :
-            print('No queue exists to receive a message')
-            return 0
-        except Exception  as e:
-            print(type(e))
+        except AttributeError:
+            raise ValueError('No queue exists to receive a message')
+        except Exception as e:
+            raise Exception("{}".format(e))
+        else:
+            # No errors, no messages as we got to this line
             return None
         
     def sendMessage(self ,stackId, stackUrl, originalmessage):
@@ -185,44 +180,40 @@ class InstanceRequestHandler:
             else:
                 print('The instance is allocated now')
             msg_id = []
+
             messages = self.receiveMessage()
-            if(messages == 0):
+            if messages is None:
+                # No messages, no errors. Any errors are caught by the try block in the run function
                 return 200
-            elif messages is None :
-                raise TypeError
-            else:
-                unread = False
-                for i in range(len(messages)):
-                    message = messages[i]
-                    if message['MessageId'] in msg_id:
-                        print ('Message already read.')
-                        if(i == messages[len(messages)-1] and not(unread)):
-                            print ('All Messages in the queue have been already read.')
-                            return 'SUCCESS'
-                    else:
-                        msg_id.append(message['MessageId'])
-                        unread = True
-                        print ('The Message {} is read.'.format(message['MessageId']))
-                        try:
-                            m = self.sqs_res.Message(self.read_url,message['ReceiptHandle'])
-                        except Exception as err:
-                            message = "{0}\n".format(err)
-                            return None
-                        messageBody = json.dumps(message['Body'])
-                        
-                        response = self.sendMessage(stackId,stackUrl,messageBody)
-                        if response  is None :
-                            raise TypeError
-                        
-                        try:
-                            m.delete()
-                        except Exception as err:
-                            # message = "{0}\n".format(err)
-                            return 200
-                        
             
-            
-    
+            unread = False
+            for i in range(len(messages)):
+                message = messages[i]
+                if message['MessageId'] in msg_id:
+                    print ('Message already read.')
+                    if(i == messages[len(messages)-1] and not(unread)):
+                        print ('All Messages in the queue have been already read.')
+                        return 'SUCCESS'
+                else:
+                    msg_id.append(message['MessageId'])
+                    unread = True
+                    print ('The Message {} is read.'.format(message['MessageId']))
+                    try:
+                        m = self.sqs_res.Message(self.read_url,message['ReceiptHandle'])
+                    except Exception as err:
+                        message = "{0}\n".format(err)
+                        return None
+                    messageBody = json.dumps(message['Body'])
+                    
+                    response = self.sendMessage(stackId,stackUrl,messageBody)
+                    if response  is None :
+                        raise TypeError
+                    
+                    try:
+                        m.delete()
+                    except Exception as err:
+                        # message = "{0}\n".format(err)
+                        return 200
         except Exception as err:
             message = "{0}\n".format(err)
             print(message)
