@@ -98,6 +98,7 @@ class InstanceRequestHandler:
                     return True
         except Exception as err:
             print("{}\n".format(err))
+        else:
             return False
         
     def findInstance(self, instanceId):
@@ -135,6 +136,7 @@ class InstanceRequestHandler:
                 raise ValueError('The Stack should have a valid output')
         except Exception as err:
             print("{}\n".format(err))
+        else:
             return None
             
     def run(self):
