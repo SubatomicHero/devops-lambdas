@@ -33,23 +33,23 @@ class TestInstanceRequestHandler(unittest.TestCase):
         self.assertEquals(code, 200)
         print("Test 'run function with no message' : passed")
 
-    # @mock_ec2
-    # @mock_sqs
-    # def test_run_noReadQueue(self):
-    #     print ("--Test Run function--")
-    #     sqs = boto3.resource('sqs', region_name = 'us-east-1')
-    #     q = sqs.create_queue(QueueName = 'readqueue')
-    #     read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
-    #     q1 = sqs.create_queue(QueueName = 'publishqueue')
-    #     publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
-    #     local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
-    #     read_queue.delete()
-    #     instance = self.add_servers()
-    #     instance.add_tag('Allocated', 'false')
-    #     self.build_stack(instance.id)
-    #     code = local_instance.run()
-    #     self.assertEquals(code, 200)
-    #     print("Test 'run function with no read queue' : passed")
+    @mock_ec2
+    @mock_sqs
+    def test_run_noReadQueue(self):
+        print ("--Test Run function--")
+        sqs = boto3.resource('sqs', region_name = 'us-east-1')
+        q = sqs.create_queue(QueueName = 'readqueue')
+        read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+        q1 = sqs.create_queue(QueueName = 'publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
+        read_queue.delete()
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
+        code = local_instance.run()
+        self.assertEquals(code, 'FAILURE')
+        print("Test 'Failed run function with no read queue' : passed")
 
     @mock_cloudformation
     @mock_ec2
@@ -71,27 +71,26 @@ class TestInstanceRequestHandler(unittest.TestCase):
         self.assertEquals(code, 200)
         print("Test 'run function with message' : passed")
 
-    # @mock_cloudformation
-    # @mock_ec2
-    # @mock_sqs
-    # def test_run_withMessageNoPublishQueue(self):
-    #     print ("--Test Run function--")
-    #     sqs = boto3.resource('sqs', region_name = 'us-east-1')
-    #     q = sqs.create_queue(QueueName = 'readqueue')
-    #     messageBody = json.dumps(original_message)
-    #     q.send_message(MessageBody = messageBody)
-    #     read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
-    #     q1 = sqs.create_queue(QueueName = 'publishqueue')
-    #     publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
-    #     local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
-    #     publish_queue.delete()
-    #     instance = self.add_servers()
-    #     instance.add_tag('Allocated', 'false')
-    #     self.build_stack(instance.id)
-    #     code = local_instance.run()
-    #     self.assertEquals(code, 200)
-    #     print("Test 'run function with message and no publish queue' : passed")
-    
+    @mock_cloudformation
+    @mock_ec2
+    @mock_sqs
+    def test_run_withMessageNoPublishQueue(self):
+        print ("--Test Run function--")
+        sqs = boto3.resource('sqs', region_name = 'us-east-1')
+        q = sqs.create_queue(QueueName = 'readqueue')
+        messageBody = json.dumps(original_message)
+        q.send_message(MessageBody = messageBody)
+        read_queue = sqs.get_queue_by_name(QueueName = 'readqueue')
+        q1 = sqs.create_queue(QueueName = 'publishqueue')
+        publish_queue = sqs.get_queue_by_name(QueueName = 'publishqueue')
+        local_instance = InstanceRequestHandler(read_queue.url, publish_queue.url)
+        publish_queue.delete()
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
+        code = local_instance.run()
+        self.assertEquals(code, 'FAILURE')
+        print("Test 'Failed run function with message and no publish queue' : passed")
     
     @mock_ec2
     def add_servers(self, ami_id = "ami-12345abc"):

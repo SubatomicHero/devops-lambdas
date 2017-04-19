@@ -174,7 +174,7 @@ class InstanceRequestHandler:
                             print ('Message already read.')
                             if(i == messages[len(messages)-1] and not(unread)):
                                 print ('All Messages in the queue have been already read.')
-                                return 'SUCCESS'
+                                return 200
                         else:
                             msg_id.append(message['MessageId'])
                             unread = True
@@ -193,9 +193,8 @@ class InstanceRequestHandler:
                 else:
                     print('No message in the queue')
         except Exception as err:
-            message = "{0}\n".format(err)
             print("{}\n".format(err))
-            return message
+            return 'FAILURE'
         else:
             return 200
 
@@ -204,12 +203,12 @@ IRH = InstanceRequestHandler()
 def lambda_handler(event, context):
     try:
         res = IRH.run()
-        if res != 200:
-            print (res)
+        if res == 'FAILURE':
+            print ('The run function has failed')
             raise ValueError
-    except Exception as err:
-        print("{}\n".format(err))
-        return ('FAILURE')
-    else:
         print("All OK")
         return 200
+    except Exception as err:
+        print("{}\n".format(err))
+    else:
+        return ('FAILURE')
