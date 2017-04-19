@@ -12,7 +12,7 @@ class LifecycleHandler:
   def __init__(self):
     self.cfn_client = boto3.client('cloudformation')
     self.ec2_client = boto3.client('ec2')
-    self.TODAY = datetime.today()
+    self.TODAY = datetime.today().strftime("%d-%m-%Y")
     self.EXPIRY_KEY = 'ExpiryDate'
     self.STATES = ['CREATE_COMPLETE', 'UPDATE_COMPLETE']
     self.STACK_TYPE = os.environ['stack_type'] if os.environ.get('stack_type') else 'Trial'
@@ -118,9 +118,10 @@ class LifecycleHandler:
 
         for tag in tags['Tags']:
           if tag['Key'] == self.EXPIRY_KEY:
-            expiry_date = datetime.strptime(tag['Value'], '%Y-%m-%d')
-            print("Expiry date on {} is {}".format(instance_id, str(expiry_date.date())))
-            if self.TODAY > expiry_date:
+            expiry_date = datetime.strptime(tag['Value'], '%d-%m-%Y')
+            print("Expiry date on {} is {}".format(instance_id, str(expiry_date.date().strftime("%d-%m-%Y"))))
+            t = datetime.strptime(self.TODAY, "%d-%m-%Y")
+            if t > expiry_date:
               print("Instance {} has passed expiry date".format(instance_id))
               status = self.describe_instances(instance_id)
               if status is None:
@@ -132,11 +133,12 @@ class LifecycleHandler:
                 if state['State']['Name'] == 'running':
                   # add n days to expiry date, stop instance
                   new_expiry_date = expiry_date + timedelta(days=self.DAYS_TO_STOP)
-                  print("New expiry date is {0}".format(str(new_expiry_date.date())))
+                  ned = new_expiry_date.date().strftime("%d-%m-%Y")
+                  print("New expiry date is {}".format(ned))
                   updated_tags = self.update_tags(instance_id, [
                     {
                       'Key': self.EXPIRY_KEY,
-                      'Value': str(new_expiry_date.date())
+                      'Value': ned
                     }
                   ])
                   if updated_tags is None:
