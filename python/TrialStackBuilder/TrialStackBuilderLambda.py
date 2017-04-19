@@ -5,14 +5,10 @@ import boto3
 import json
 import six
 import ast
-import uuid
-
-os.environ['stack_count'] = '5'
-os.environ['template_bucket_name'] = 'online-trial-control-tes-onlinetrialstacktemplate-ak21n1yv3vdc'
-os.environ['stage'] = 'test'
+import uuid, os
 
 class TrialStackBuilder:
-    def __init__(self,bucketname=os.environ['template_bucket_name'],stage = os.environ['stage']):
+    def __init__(self,bucketname = os.environ['template_bucket_name'], stage = os.environ['stage']):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.ec2_client = boto3.client('ec2')
@@ -117,8 +113,6 @@ class TrialStackBuilder:
     def getTemplate(self):
         branch = 'develop' if self.stage == 'test' else 'master'
         filename = "online-trial-stack-{}.yaml".format(branch)
-        fileToSave = 'temp.yaml'
-        
         try :
             response = self.s3_client.get_object(
                 Bucket=self.bucketname,
@@ -136,13 +130,14 @@ class TrialStackBuilder:
             branch = 'develop' if self.stage == 'test' else 'master'
             name = str(uuid.uuid1())
             name =  'TrialStack'+name.replace('-','')
+            print (self.stage)
             response = self.cloud_client.create_stack(
                 StackName=name,
                 TemplateBody = self.template,
                 Parameters=[
                 {
                     'ParameterKey':'ControlArchitectureName',
-                    'ParameterValue':"online-trial-stack-{}".format(branch)
+                    'ParameterValue':"online-trial-control-{}".format(self.stage)
                 },
                 ],
                 Capabilities=[
