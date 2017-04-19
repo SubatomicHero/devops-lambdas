@@ -202,7 +202,8 @@ def lambda_handler(event, context):
         if res == 'FAILURE':
             raise ValueError('The function has failed')
         print("All OK")
+        return 200
     except Exception as err:
         print("{}".format(err))
     else:
-        return 1
+        return 'FAILURE'
