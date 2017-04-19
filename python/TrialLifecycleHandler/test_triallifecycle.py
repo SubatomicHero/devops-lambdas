@@ -13,7 +13,6 @@ class TestTrialLifeCycle(unittest.TestCase):
   def test_instance(self):
     self.assertIsNotNone(handler.cfn_client)
     self.assertIsNotNone(handler.ec2_client)
-    self.assertIsInstance(handler.TODAY, datetime)
     self.assertEqual(handler.EXPIRY_KEY, 'ExpiryDate')
     self.assertEqual(len(handler.STATES), 2)
 
@@ -33,7 +32,7 @@ class TestTrialLifeCycle(unittest.TestCase):
             "Tags": [
               {
                 "Key": "ExpiryDate",
-                "Value": "2017-05-04"
+                "Value": "04-05-2017"
               }
             ]
           }
@@ -85,12 +84,12 @@ class TestTrialLifeCycle(unittest.TestCase):
 
     # Test that with a valid instance id, we get the tags we expect
     instance = self.add_servers()
-    instance.add_tag(handler.EXPIRY_KEY, "2017-04-05")
+    instance.add_tag(handler.EXPIRY_KEY, "05-04-2017")
     response = handler.describe_tags(instance.id)
     self.assertEquals(response['ResponseMetadata']['HTTPStatusCode'], 200)
     self.assertEquals(len(response['Tags']), 1)
     self.assertEquals(response['Tags'][0]['Key'], handler.EXPIRY_KEY)
-    self.assertEquals(response['Tags'][0]['Value'], "2017-04-05")
+    self.assertEquals(response['Tags'][0]['Value'], "05-04-2017")
 
   @mock_ec2
   def test_describe_instances(self):
@@ -115,17 +114,17 @@ class TestTrialLifeCycle(unittest.TestCase):
     self.assertIsNone(response)
 
     instance = self.add_servers()
-    instance.add_tag(handler.EXPIRY_KEY, "2017-04-05")
+    instance.add_tag(handler.EXPIRY_KEY, "05-04-2017")
     response = handler.describe_tags(instance.id)
-    self.assertEquals(response['Tags'][0]['Value'], "2017-04-05")
+    self.assertEquals(response['Tags'][0]['Value'], "05-04-2017")
     handler.update_tags(instance.id, [
       {
         'Key': handler.EXPIRY_KEY,
-        'Value': "2017-04-08"
+        'Value': "08-04-2017"
       }
     ])
     response = handler.describe_tags(instance.id)
-    self.assertEquals(response['Tags'][0]['Value'], "2017-04-08")
+    self.assertEquals(response['Tags'][0]['Value'], "08-04-2017")
 
   @mock_cloudformation
   def test_get_instance_id(self):
@@ -155,12 +154,12 @@ class TestTrialLifeCycle(unittest.TestCase):
   @mock_cloudformation
   def test_stop_instance_if_expired(self):
     # tests that an instance is stopped if the expiry date is before today and the instance is running
-    today = handler.TODAY
+    today = datetime.strptime(handler.TODAY, "%d-%m-%Y")
     yesterday = today - timedelta(days=1)
     instance = self.add_servers()
-    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date()))
+    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date().strftime("%d-%m-%Y")))
     response = handler.describe_tags(instance.id)
-    self.assertEquals(response['Tags'][0]['Value'], str(yesterday.date()))
+    self.assertEquals(response['Tags'][0]['Value'], str(yesterday.date().strftime("%d-%m-%Y")))
     self.assertTrue(today > yesterday)
     response = handler.describe_instances(instance.id)
     obj = response['Reservations'][0]['Instances'][0]
@@ -177,16 +176,16 @@ class TestTrialLifeCycle(unittest.TestCase):
     new_expiry_date = yesterday + timedelta(days=handler.DAYS_TO_STOP)
 
     response = handler.describe_tags(instance.id)
-    self.assertEquals(response['Tags'][0]['Value'], str(new_expiry_date.date()))
+    self.assertEquals(response['Tags'][0]['Value'], str(new_expiry_date.date().strftime("%d-%m-%Y")))
 
   @mock_ec2
   @mock_cloudformation
   def test_terminate_stack_if_stopped(self):
     # tests that a cloudformation stack is terminated if the instance is stopped and expired
-    today = handler.TODAY
+    today = datetime.strptime(handler.TODAY, "%d-%m-%Y")
     yesterday = today - timedelta(days=1)
     instance = self.add_servers()
-    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date()))
+    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date().strftime("%d-%m-%Y")))
     self.build_stack(instance.id)
     
     # lets stop the instance, as per the logic
@@ -203,10 +202,10 @@ class TestTrialLifeCycle(unittest.TestCase):
   @mock_cloudformation
   @mock_ec2
   def test_run_returns_0(self):
-    today = handler.TODAY
+    today = datetime.strptime(handler.TODAY, "%d-%m-%Y")
     yesterday = today - timedelta(days=1)
     instance = self.add_servers()
-    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date()))
+    instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date().strftime("%d-%m-%Y")))
     self.build_stack(instance.id)
     code = handler.run()
 
