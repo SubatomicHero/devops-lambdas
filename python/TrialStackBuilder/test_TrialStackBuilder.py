@@ -2,9 +2,9 @@
 from moto import mock_cloudformation, mock_ec2, mock_s3, mock_lambda
 import unittest,boto, boto3,requests,sure,time,json,uuid, os
 from botocore.exceptions import ClientError
-
 from nose.tools import assert_raises
 from TrialStackBuilderLambda import TrialStackBuilder
+
 # parameters
 event = {
   "account": "123456789012",
@@ -56,6 +56,7 @@ dummy_template2 = {
         }
     }
 }
+
 TSB = TrialStackBuilder()
 
 class TestTrialStackBuilder(unittest.TestCase):
@@ -67,35 +68,35 @@ class TestTrialStackBuilder(unittest.TestCase):
     @mock_cloudformation
     def build_stack(self, instance_id="i-0e0f25febd2bb4f43"):
         dummy_template = {
-        "AWSTemplateFormatVersion": "2010-09-09",
-        "Description": "Stack 1",
-        "Resources": {
-            "EC2Instance1": {
-            "Type": "AWS::EC2::Instance",
-            "Properties": {
-                "ImageId": "ami-d3adb33f",
-                "KeyName": "dummy",
-                "InstanceType": "t2.micro",
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "Stack 1",
+            "Resources": {
+                "EC2Instance1": {
+                    "Type": "AWS::EC2::Instance",
+                    "Properties": {
+                        "ImageId": "ami-d3adb33f",
+                        "KeyName": "dummy",
+                        "InstanceType": "t2.micro",
+                    }
+                }
+            },
+            "Outputs": {
+                "Type": {
+                    "Value": "Trial"
+                },
+                "InstanceId": {
+                    "Value": instance_id
+                },
+                "PublicIp": {
+                    "Value": "54.210.56.83"
+                },
+                "Stage": {
+                    "Value": "test"
+                },
+                "Url": {
+                    "Value":"https://e6br9y.trial.alfresco.com"
+                }
             }
-            }
-        },
-        "Outputs": {
-            "Type": {
-            "Value": "Trial"
-            },
-            "InstanceId": {
-            "Value": instance_id
-            },
-            "PublicIp": {
-            "Value": "54.210.56.83"
-            },
-            "Stage": {
-            "Value": "test"
-            },
-            "Url": {
-            "Value":"https://e6br9y.trial.alfresco.com"
-            }
-        }
         }
         template = json.dumps(dummy_template)
         return TSB.cloud_client.create_stack(
@@ -104,7 +105,7 @@ class TestTrialStackBuilder(unittest.TestCase):
         )
         
     @mock_ec2
-    def add_servers(self, ami_id="ami-0b71c21d"):
+    def add_servers(self, ami_id = "ami-0b71c21d"):
         conn = boto.connect_ec2('the_key', 'the_secret')
         return conn.run_instances(ami_id).instances[0]
     
@@ -134,7 +135,6 @@ class TestTrialStackBuilder(unittest.TestCase):
             raise ValueError("file {} is not a file or dir.".format(path))
         local_intance = TrialStackBuilder('TrialBucket', 'test')
         code = local_intance.run(event)
-        
         self.assertEquals(code, 200)
         print("Test 'Run function return 200' : passed")
 
@@ -187,8 +187,8 @@ class TestTrialStackBuilder(unittest.TestCase):
         file = open('temp.yaml','w') 
         file.write(template) 
         file.close() 
-        s3_res= boto3.resource('s3', region_name='us-east-1')
-        bucket = s3_res.create_bucket(Bucket='TrialBucket')
+        s3_res= boto3.resource('s3', region_name = 'us-east-1')
+        bucket = s3_res.create_bucket(Bucket = 'TrialBucket')
         s3_res.Bucket('TrialBucket').upload_file('temp.yaml', filename)
         if os.path.isfile('temp.yaml'):
             os.remove('temp.yaml')  # remove the file
@@ -208,22 +208,17 @@ class TestTrialStackBuilder(unittest.TestCase):
         file = open('temp.yaml','w') 
         file.write(template) 
         file.close() 
-        s3_res= boto3.resource('s3', region_name='us-east-1')
-        bucket = s3_res.create_bucket(Bucket='TrialBucket')
+        s3_res= boto3.resource('s3', region_name = 'us-east-1')
+        bucket = s3_res.create_bucket(Bucket = 'TrialBucket')
         s3_res.Bucket('TrialBucket').upload_file('temp.yaml', filename)
         if os.path.isfile('temp.yaml'):
             os.remove('temp.yaml')  # remove the file
         else:
             raise ValueError("file {} is not a file or dir.".format(path))
-
         local_intance = TrialStackBuilder('TrialBucket','test')
         testTemplate = local_intance.getTemplate()
         assert testTemplate == template
         print("Test 'Get Template' : passed")
-        
-        
-        
-        
 
 if __name__ == '__main__':
     unittest.main()
