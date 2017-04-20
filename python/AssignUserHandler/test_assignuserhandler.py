@@ -1,5 +1,5 @@
 from assign_user_handler import AssignUserHandler
-from moto import mock_dynamodb2, mock_sqs
+from moto import mock_dynamodb2, mock_sqs, mock_ec2, mock_cloudformation
 import unittest
 import requests
 import httpretty
@@ -192,6 +192,8 @@ class TestAssignUserHandler(unittest.TestCase):
     self.assertFalse(response)
 
   @httpretty.activate
+  @mock_cloudformation
+  @mock_ec2
   def test_update_marketo_lead(self, **kwargs):
     # pass in a bad message first, should not be a success
     message = self._get_bad_message()
@@ -203,17 +205,20 @@ class TestAssignUserHandler(unittest.TestCase):
       body="{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": true, \"requestId\": \"e809#14f22884e5f\"}"
     )
     handler_without_queue = self._get_handler_without_queue()
-    response = handler_without_queue.update_marketo_lead(message)
+    password = handler_without_queue.create_password()
+    response = handler_without_queue.update_marketo_lead(message, password)
     self.assertFalse(response['success'])
     self.assertEquals(response['attempts'], 0)
 
     # pass in a good message
     message = self._get_good_message()
-    response = handler_without_queue.update_marketo_lead(message)
+    response = handler_without_queue.update_marketo_lead(message, password)
     self.assertTrue(response['success'])
     self.assertEquals(response['attempts'], 1)
 
   @httpretty.activate
+  @mock_cloudformation
+  @mock_ec2
   def test_failed_update_marketo_lead(self):
     # good message, bad response 404
     message = self._get_good_message()
@@ -225,7 +230,8 @@ class TestAssignUserHandler(unittest.TestCase):
       body="{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": false, \"requestId\": \"e809#14f22884e5f\", \"errors\":[{\"code\": 404, \"message\":\"The lead was not found\"}]}"
     )
     handler_without_queue = self._get_handler_without_queue()
-    response = handler_without_queue.update_marketo_lead(message)
+    password = handler_without_queue.create_password()
+    response = handler_without_queue.update_marketo_lead(message, password)
     self.assertEquals(response['attempts'], 5)
     self.assertFalse(response['success'])
 
