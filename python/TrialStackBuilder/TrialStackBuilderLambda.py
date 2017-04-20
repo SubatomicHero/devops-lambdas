@@ -47,7 +47,7 @@ class TrialStackBuilder:
                     unassigned = self.findUnassignedInstance(instance['Tags'])
                     if unassigned == None:
                         raise ValueError('Cannot find any unassigned instance')
-                    elif unassigned == True :   
+                    elif unassigned == True:   
                         count += 1 
                         print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
                     else:
