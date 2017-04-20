@@ -8,6 +8,8 @@
 from __future__ import print_function
 import json, os, boto3, json, six, ast
 
+os.environ['trial_request_table'] = '!Ref OnlineTrialRequestDynamoDbTable'
+
 class FulfillmentHandler:
     def __init__(self, table = os.environ['trial_request_table']):
         try:
@@ -18,12 +20,12 @@ class FulfillmentHandler:
             print("{}\n".format(err))
             raise err
             
-    def readFromTable(self, table):
+    def readFromTable(self, dynamodb, name):
         try:
-            response = self.dynamo_client.get_item(
-                TableName = table.name,
+            response = dynamodb.get_item(
+                TableName = name,
                 Key={
-                    'leadID': {
+                    'Fulfilled': {
                         'S' : 'n'
                     }
 
