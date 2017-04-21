@@ -47,7 +47,7 @@ class TrialStackBuilder:
                     unassigned = self.findUnassignedInstance(instance['Tags'])
                     if unassigned == None:
                         raise ValueError('Cannot find any unassigned instance')
-                    elif unassigned == True :   
+                    elif unassigned == True:   
                         count += 1 
                         print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
                     else:
@@ -121,6 +121,7 @@ class TrialStackBuilder:
                 Key = filename
             )
             template = response['Body'].read()
+            print ('Received the template from S3 Bucket')
             return template
         except Exception as err:
             print("{}\n".format(err))
@@ -130,8 +131,8 @@ class TrialStackBuilder:
     def createStack(self):
         try:
             branch = 'develop' if self.stage == 'test' else 'master'
-            name = str(uuid.uuid1())
-            name =  'TrialStack-'+name.replace('-', '')
+            uuid = str(uuid.uuid1()).replace('-', '')
+            name = "{}-{}".format(self.stage, uuid)
             response = self.cloud_client.create_stack(
                 StackName = name,
                 TemplateBody = self.template,
@@ -154,35 +155,34 @@ class TrialStackBuilder:
         
     def run(self, event):
         try:
-            if event['source'] == None:
+            if event['source'] is None:
                 raise ValueError('Cannot find any event to the lambda')
             stack_count = int(os.environ['stack_count'])
             if stack_count is None:
                 raise ValueError('Cannot find any stack count')
             source = event['source']
-            if source == 'aws.events':
-                self.template = self.getTemplate()
-                print ('Recieved the template from S3 Bucket')
-                stackList = self.listStack()
-                numberStack = self.countUnassignedStack(stackList)
-                if numberStack == None:
-                    raise ValueError('Cannot count any unassigned stack')  
+            self.template = self.getTemplate()
+            if self.template is None:
+                    raise ValueError('Cant build stacks without a template')
+            if source is 'aws.events':
+                numberStack = self.countUnassignedStack(self.listStack())
+                if numberStack is None:
+                    raise ValueError('Cannot count any unassigned stack')
+                if numberStack == 0:
+                    # future requirement, send message to slack/teams/whatevs
+                    print("***** 0 stacks ready *****")
                 if(numberStack < stack_count):
                     stackToCreate = stack_count - numberStack 
                     print ('Number of stacks to be created: {} '.format(stackToCreate))
                     for i in range(stackToCreate):
-                        response = self.createStack()
-                        if response == None:
+                        stack_id = self.createStack()
+                        if stack_id is None:
                             raise ValueError('Cannot create the stack')
-                        else : 
-                            print("The stack is created and its StackId is {} ".format(response))
+                        print("The stack is created and its StackId is {} ".format(stack_id))
                     return 200
-                else:
-                    print ('There is already {} unassigned stacks : '.format(stack_count))
-                    return 200
+                print ('There is already {} unassigned stacks : '.format(stack_count))
+                return 200
             else:
-                self.template = self.getTemplate()
-                print ('Recieved the template from S3 Bucket')
                 response = self.createStack()
                 if response == None:
                     raise ValueError('Cannot create the stack')
