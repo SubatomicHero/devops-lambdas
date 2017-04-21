@@ -22,22 +22,14 @@ class TrialStackBuilder:
             response = self.cloud_client.describe_stacks()
             if response['Stacks'] is None:
                 raise ValueError('There is no stack')
-            stackList = response['Stacks']
+            print("There are {} stacks to loop".format(len(response['Stacks'])))
             
             # only return stacks that are trial stacks, not other stacks in the list
             stacks = []
-            for stack in stackList:
-                is_trial = False
-                is_correct_stage = False
-                for output in stack['Outputs']:
-                    if output['OutputKey'] is 'Type' and output['OutputValue'] is 'Trial':
-                        is_trial = True
-                    if output['OutputKey'] is 'Stage' and output['OutputValue'] is os.environ['stage']:
-                        is_correct_stage = True
-                if is_trial and is_correct_stage:
-                    print("Stack id {} is a trial stack".format(stack['StackId']))
+            for stack in response['Stacks']:
+                if stack['StackName'].startswith("trial-{}-".format(os.environ['stage'])):
                     stacks.append(stack)
-
+            print("Returning {} stacks".format(len(stacks)))
             return stacks
         except Exception as err:
             print("{}\n".format(err))
@@ -146,8 +138,8 @@ class TrialStackBuilder:
     def createStack(self):
         try:
             branch = 'develop' if self.stage == 'test' else 'master'
-            uuid = str(uuid.uuid1()).replace('-', '')
-            name = "{}-{}".format(self.stage, uuid)
+            unique_id = str(uuid.uuid1()).replace('-', '')
+            name = "trial-{}-{}".format(self.stage, unique_id)
             response = self.cloud_client.create_stack(
                 StackName = name,
                 TemplateBody = self.template,
@@ -176,10 +168,11 @@ class TrialStackBuilder:
             if stack_count is None:
                 raise ValueError('Cannot find any stack count')
             source = event['source']
+            print("The source is {}".format(source))
             self.template = self.getTemplate()
             if self.template is None:
-                    raise ValueError('Cant build stacks without a template')
-            if source is 'aws.events':
+                raise ValueError('Cant build stacks without a template')   
+            if source == 'aws.events':
                 numberStack = self.countUnassignedStack(self.listStack())
                 if numberStack is None:
                     raise ValueError('Cannot count any unassigned stack')
@@ -222,3 +215,4 @@ def lambda_handler(event, context):
         print("{}".format(err))
     else:
         return 'FAILURE'
+        
