@@ -23,7 +23,22 @@ class TrialStackBuilder:
             if response['Stacks'] is None:
                 raise ValueError('There is no stack')
             stackList = response['Stacks']
-            return stackList
+            
+            # only return stacks that are trial stacks, not other stacks in the list
+            stacks = []
+            for stack in stackList:
+                is_trial = False
+                is_correct_stage = False
+                for output in stack['Outputs']:
+                    if output['OutputKey'] is 'Type' and output['OutputValue'] is 'Trial':
+                        is_trial = True
+                    if output['OutputKey'] is 'Stage' and output['OutputValue'] is os.environ['stage']:
+                        is_correct_stage = True
+                if is_trial and is_correct_stage:
+                    print("Stack id {} is a trial stack".format(stack['StackId']))
+                    stacks.append(stack)
+
+            return stacks
         except Exception as err:
             print("{}\n".format(err))
         else:
