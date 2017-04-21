@@ -162,9 +162,9 @@ class TrialStackBuilder:
                 raise ValueError('Cannot find any stack count')
             source = event['source']
             self.template = self.getTemplate()
-            if source is 'aws.events':
-                if self.template is None:
+            if self.template is None:
                     raise ValueError('Cant build stacks without a template')
+            if source is 'aws.events':
                 numberStack = self.countUnassignedStack(self.listStack())
                 if numberStack is None:
                     raise ValueError('Cannot count any unassigned stack')
