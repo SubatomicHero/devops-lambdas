@@ -22,14 +22,13 @@ class TrialStackBuilder:
             response = self.cloud_client.describe_stacks()
             if response['Stacks'] is None:
                 raise ValueError('There is no stack')
-            print("There are {} stacks to loop".format(len(response['Stacks'])))
             
             # only return stacks that are trial stacks, not other stacks in the list
             stacks = []
             for stack in response['Stacks']:
                 if stack['StackName'].startswith("trial-{}-".format(os.environ['stage'])):
                     stacks.append(stack)
-            print("Returning {} stacks".format(len(stacks)))
+            print("Returning {} stack(s)".format(len(stacks)))
             return stacks
         except Exception as err:
             print("{}\n".format(err))
@@ -153,6 +152,16 @@ class TrialStackBuilder:
                     'CAPABILITY_IAM',
                 ],
                 OnFailure = 'DELETE',
+                Tags=[
+                    {
+                        'Key': 'Stage',
+                        'Value': self.stage
+                    },
+                    {
+                        'Key': 'Type',
+                        'Value': 'Trial'
+                    }
+                ]
             )   
             return response['StackId']
         except Exception as err:
@@ -188,13 +197,13 @@ class TrialStackBuilder:
                             raise ValueError('Cannot create the stack')
                         print("The stack is created and its StackId is {} ".format(stack_id))
                     return 200
-                print ('There is already {} unassigned stacks : '.format(stack_count))
+                print ('There is already {} unassigned stack(s)'.format(stack_count))
                 return 200
             else:
                 response = self.createStack()
                 if response == None:
                     raise ValueError('Cannot create the stack')
-                else : 
+                else: 
                     print("The stack is created and its StackId is {} ".format(response))
                     return 200
         except Exception as err:
@@ -209,10 +218,8 @@ def lambda_handler(event, context):
         res = TSB.run(event)
         if res == 'FAILURE':
             raise ValueError('The function has failed')
-        print("All OK")
         return 200
     except Exception as err:
         print("{}".format(err))
     else:
         return 'FAILURE'
-        
