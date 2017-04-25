@@ -120,7 +120,19 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         assert response['ResponseMetadata']['RetryAttempts'] ==  0
         print ('Test publish sns topic : Passed\n')
 
-    
+    @mock_sns
+    @mock_dynamodb2
+    def test_run_success(self):
+        name = 'trial_request_table'
+        table = self.createTestTable(name)
+        id1 = str(random.randint(0, 100))
+        self.putItem(table, name, id1, 'n')
+        topicArn = self.createSNSTopic()
+        testInstance = FulfillmentHandler(name, topicArn)
+        code = testInstance.run()
+        assert code == 200 
+        print ('Test run function returns 200: passed\n')
+
     
 if __name__ == '__main__':
     unittest.main()
