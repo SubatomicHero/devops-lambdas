@@ -7,24 +7,15 @@ from FulfillmentHandlerLambda import FulfillmentHandler
 
 FH = FulfillmentHandler()
 
-
 class TestFulfillmentHandlerLambda(unittest.TestCase):
     def test_instance(self):
-        self.assertIsNotNone(FH.sns_res)
+        self.assertIsNotNone(FH.sns_client)
         self.assertIsNotNone(FH.dynamo_res)
-    
-    @mock_dynamodb2
-    def createDynamodb(self):
-        try:
-            dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-            return dynamodb
-        except IOError:
-            print("test failed. no instance of dynamodb created")
 
     @mock_dynamodb2
-    def createTestTable(self, dynamodb, name):
+    def createTestTable(self, name):
         try:
-            table = dynamodb.create_table(
+            table = FH.dynamo_res.create_table(
                 TableName = name,
                 KeySchema = [
                     {
@@ -55,71 +46,81 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
                     'WriteCapacityUnits': 10
                 }
             )
-        except IOError:
-            print("test failed. no table created")
+            return table
+        except Exception:
+            print("test failed. no dynamoDB table created")
 
-    def putItem(self, dynamodb, name, id, f):
+    def putItem(self, table, name, id, f):
         try:
-            table = dynamodb.Table(name)
             table.put_item(
                 Item = {
-                    'LeadId': str(id),
+                    'LeadId': id,
                     'Fulfilled' : f,
                     'Date' : str(table.creation_date_time)
                 }
             )
-        except IOError:
+        except Exception:
             print("test failed. no instance table updated")
+    
+    @mock_sns
+    def createSNSTopic(self):
+        try:
+            sns_client = boto3.client('sns', region_name='us-east-1')
+            topic = sns_client.create_topic(
+                Name = 'topic'
+            )
+            if topic is None:
+                raise ValueError('No sns topic could be created')
+            return topic['TopicArn']
+        except Exception:
+            print("test failed. no sns topic could be created")
 
     @mock_dynamodb2
     def test_readFromTable_multipleReq(self):
         name = 'trial_request_table'
-        dynamodb = self.createDynamodb()
-        self.createTestTable(dynamodb, name)
-        id1 = random.randint(0, 100)
-        self.putItem(dynamodb, name, id1, 'y')
-        id2 = random.randint(0, 100)
-        self.putItem(dynamodb, name, id2, 'n')
-        leadId = FH.readFromTable(dynamodb, name)
+        table = self.createTestTable(name)
+        id1 = str(random.randint(0, 100))
+        self.putItem(table, name, id1, 'y')
+        id2 = str(random.randint(0, 100))
+        self.putItem(table, name, id2, 'n')
+        leadId = FH.readFromTable(name)
         assert leadId == str(id2)
-        print ('Test dynamodb read leadId from table (multiple unfulfilled request table): Passed\n')
+        print ('Test dynamoDB read leadId from table (multiple unfulfilled request table): Passed\n')
 
     @mock_dynamodb2
     def test_readFromTable_noReq(self):
         name = 'trial_request_table'
-        dynamodb = self.createDynamodb()
-        self.createTestTable(dynamodb, name)
-        id1 = random.randint(0, 100)
-        self.putItem(dynamodb, name, id1, 'y')
-        id1 = random.randint(0, 100)
-        leadId = FH.readFromTable(dynamodb, name)
+        table = self.createTestTable(name)
+        id1 = str(random.randint(0, 100))
+        self.putItem(table, name, id1, 'y')
+        leadId = FH.readFromTable(name)
         assert leadId == None
-        print ('Test dynamodb read leadId from table (no unfulfilled request table): Passed\n')
+        print ('Test dynamoDB read leadId from table (no unfulfilled request table): Passed\n')
+
+    @mock_dynamodb2
+    def test_readFromTable_noTable(self):
+        name = None
+        leadId = FH.readFromTable(name)
+        assert leadId == None
+        print ('Test dynamoDB read leadId from table (no dynamoDB table): Passed\n')
 
     def test_createObject(self):
-        id1 = random.randint(0, 100)
+        id1 = str(random.randint(0, 100))
         obj = FH.createMessageObject(id1)
-        assert obj['lead']['StringValue'] == str(id1)
-        print ('Test create object: Passed\n')
+        assert obj['lead']['StringValue'] == id1
+        print ('Test create sns object: Passed\n')
 
     @mock_sns
     def test_publishTopicSNS(self):
-        sns = boto3.resource('sns', region_name='us-east-1')
-        topic = sns.Topic('arn:aws:dynamodb:us-east-1:123456789012:table/books_table')
-        sns_client = boto3.client('sns', region_name='us-east-1')
-        id1 = random.randint(0, 100)
-        obj = { 
-            'source': {
-                'DataType': 'string',
-                'StringValue': 'onlinetrial'
-            },
-            'lead': {
-                'DataType': 'string',
-                'StringValue': str(id1)
-            }
-        }
-        response = FH.publishTopicSNS(sns_client, topic, obj)
-        print ('Test create object: Passed\n')
+        topicArn = self.createSNSTopic()
+        id1 = str(random.randint(0, 100))
+        obj = FH.createMessageObject(id1)
+        response = FH.publishTopicSNS(topicArn, obj)
+        assert response['ResponseMetadata']['HTTPStatusCode'] ==  200
+        assert response['ResponseMetadata']['RetryAttempts'] ==  0
+        print ('Test publish sns topic : Passed\n')
+
+    
     
 if __name__ == '__main__':
-  unittest.main()
+    unittest.main()
