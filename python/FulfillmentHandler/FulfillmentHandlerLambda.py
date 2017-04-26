@@ -1,9 +1,6 @@
 from __future__ import print_function
 import json, os, boto3, json, six, ast, time
 
-os.environ['trial_request_table'] = 'online-trial-control-test-OnlineTrialRequestDynamoDbTable-15CBTG54YDU3W'
-os.environ['topic_arn'] = 'arn:aws:sns:us-east-1:179276412545:online-trial-control-test-OnlineTrialRequestSNSTopic-3MIYCD0W0S9Z'
-
 class FulfillmentHandler:
     def __init__(self, table = os.environ['trial_request_table'], topic = os.environ['topic_arn']):
         try:
