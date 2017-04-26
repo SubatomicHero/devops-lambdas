@@ -107,7 +107,8 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
     def test_createObject(self):
         id1 = str(random.randint(0, 100))
         obj = FH.createMessageObject(id1)
-        assert obj['lead']['StringValue'] == id1
+        assert obj['lead'] == id1
+        assert obj['source'] == 'onlinetrial'
         print ('Test create sns object: Passed\n')
 
     @mock_sns

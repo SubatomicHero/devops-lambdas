@@ -40,14 +40,8 @@ class FulfillmentHandler:
             if leadId is None or not (isinstance(leadId, six.string_types)):
                 raise ValueError('No valid leadId')
             obj = { 
-                'source': {
-                    'DataType': 'String',
-                    'StringValue': 'onlinetrial'
-                },
-                'lead': {
-                    'DataType': 'String',
-                    'StringValue': leadId
-                }
+                'source': 'onlinetrial',
+                'lead': leadId
             }
             return obj
         except Exception as err:
@@ -61,8 +55,8 @@ class FulfillmentHandler:
                 raise ValueError('No valid topicArn')
             response = self.sns_client.publish(
                 TopicArn = topicArn,
-                Message = 'string',
-                MessageAttributes = obj
+                Message = json.dumps({'default': json.dumps(obj)}),
+                MessageStructure = 'json'
             )
             if response is None:
                 raise ValueError('Cannot publish the topic')
@@ -83,7 +77,7 @@ class FulfillmentHandler:
                 obj = self.createMessageObject(leadId)
                 if obj is None:
                     raise ValueError('Cannot create an object')
-                print ('The object containing the keys "source":{} and "lead":{} is created'.format(obj['source']['StringValue'], obj['lead']['StringValue']))
+                print ('The object containing the keys "source":{} and "lead":{} is created'.format(obj['source'], obj['lead']))
                 response = self.publishTopicSNS(self.topicArn, obj)
                 if response is None:
                     raise ValueError('Cannot publish SNS message')
