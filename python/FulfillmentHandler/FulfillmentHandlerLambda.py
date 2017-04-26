@@ -28,8 +28,8 @@ class FulfillmentHandler:
                 },
             )
             if len(response['Items']) == 0:
-                raise ValueError('No unfulfilled request found')
-            return response['Items'][0]['LeadId']
+                print ('No unfulfilled request found')
+            return response['Items']
         except Exception as err:
             print("{}".format(err))
         else:
@@ -74,18 +74,20 @@ class FulfillmentHandler:
 
     def run(self):
         try:
-            leadId = self.readFromTable(self.tableName)
-            if leadId is None:
+            items = self.readFromTable(self.tableName)
+            if items is None:
                 raise ValueError('Cannot read from table')
-            print ('The unfulfilled request with the leadId {}, is retrieved from the trial request table.'.format(leadId))
-            obj = self.createMessageObject(leadId)
-            if obj is None:
-                raise ValueError('Cannot create an object')
-            print ('The object containing the keys "source":{} and "lead":{} is created'.format(obj['source']['StringValue'], obj['lead']['StringValue']))
-            response = self.publishTopicSNS(self.topicArn, obj)
-            if response is None:
-                raise ValueError('Cannot publish SNS message')
-            print ('The object is successfully published to SNS')
+            for item in items:
+                leadId = item['LeadId']
+                print ('The unfulfilled request with the leadId {}, is retrieved from the trial request table.'.format(leadId))
+                obj = self.createMessageObject(leadId)
+                if obj is None:
+                    raise ValueError('Cannot create an object')
+                print ('The object containing the keys "source":{} and "lead":{} is created'.format(obj['source']['StringValue'], obj['lead']['StringValue']))
+                response = self.publishTopicSNS(self.topicArn, obj)
+                if response is None:
+                    raise ValueError('Cannot publish SNS message')
+                print ('The object is successfully published to SNS')
             return 200
         except Exception as err:
             print("{}".format(err))
