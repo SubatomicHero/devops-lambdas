@@ -1,6 +1,4 @@
 import boto, boto3, botocore.exceptions, requests, sure , time, json, unittest, time, random
-from boto.exception import SQSError
-from boto.sqs.message import RawMessage, Message
 from moto import  mock_sqs, mock_ec2, mock_cloudformation, mock_dynamodb2, mock_sns
 from nose.tools import assert_raises
 from FulfillmentHandlerLambda import FulfillmentHandler
@@ -133,6 +131,31 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         assert code == 200 
         print ('Test run function returns 200: passed\n')
 
+    @mock_sns
+    @mock_dynamodb2
+    def test_run_noReq(self):
+        name = 'trial_request_table'
+        table = self.createTestTable(name)
+        id1 = str(random.randint(0, 100))
+        self.putItem(table, name, id1, 'y')
+        topicArn = self.createSNSTopic()
+        testInstance = FulfillmentHandler(name, topicArn)
+        code = testInstance.run()
+        assert code == None
+        print ('Test run function with no unfulfilled request: passed\n')
+
+    @mock_sns
+    @mock_dynamodb2
+    def test_run_noTopic(self):
+        name = 'trial_request_table'
+        table = self.createTestTable(name)
+        id1 = str(random.randint(0, 100))
+        self.putItem(table, name, id1, 'n')
+        topicArn = None
+        testInstance = FulfillmentHandler(name, topicArn)
+        code = testInstance.run()
+        assert code == None
+        print ('Test run function with no topic: passed\n')
     
 if __name__ == '__main__':
     unittest.main()
