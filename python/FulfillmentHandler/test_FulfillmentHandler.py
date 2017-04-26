@@ -78,11 +78,13 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         name = 'trial_request_table'
         table = self.createTestTable(name)
         id1 = str(random.randint(0, 100))
-        self.putItem(table, name, id1, 'y')
+        self.putItem(table, name, id1, 'n')
         id2 = str(random.randint(0, 100))
-        self.putItem(table, name, id2, 'n')
-        leadId = FH.readFromTable(name)
-        assert leadId == str(id2)
+        self.putItem(table, name, id2, 'y')
+        id3 = str(random.randint(0, 100))
+        self.putItem(table, name, id3, 'n')
+        items = FH.readFromTable(name)
+        assert len(items) == 2
         print ('Test dynamoDB read leadId from table (multiple unfulfilled request table): Passed\n')
 
     @mock_dynamodb2
@@ -91,15 +93,15 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         table = self.createTestTable(name)
         id1 = str(random.randint(0, 100))
         self.putItem(table, name, id1, 'y')
-        leadId = FH.readFromTable(name)
-        assert leadId == None
+        items = FH.readFromTable(name)
+        assert len(items) == 0
         print ('Test dynamoDB read leadId from table (no unfulfilled request table): Passed\n')
 
     @mock_dynamodb2
     def test_readFromTable_noTable(self):
         name = None
-        leadId = FH.readFromTable(name)
-        assert leadId == None
+        items = FH.readFromTable(name)
+        assert items == None
         print ('Test dynamoDB read leadId from table (no dynamoDB table): Passed\n')
 
     def test_createObject(self):
@@ -125,6 +127,10 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         table = self.createTestTable(name)
         id1 = str(random.randint(0, 100))
         self.putItem(table, name, id1, 'n')
+        id2 = str(random.randint(0, 100))
+        self.putItem(table, name, id2, 'y')
+        id3 = str(random.randint(0, 100))
+        self.putItem(table, name, id3, 'n')
         topicArn = self.createSNSTopic()
         testInstance = FulfillmentHandler(name, topicArn)
         code = testInstance.run()
@@ -141,7 +147,7 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         topicArn = self.createSNSTopic()
         testInstance = FulfillmentHandler(name, topicArn)
         code = testInstance.run()
-        assert code == None
+        assert code == 200
         print ('Test run function with no unfulfilled request: passed\n')
 
     @mock_sns
