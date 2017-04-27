@@ -12,3 +12,8 @@ install:
 
 script:
   - python python/AssignUserHandler/test_assignuserhandler.py
+  - python python/FulfillmentHandler/test_FulfillmentHandler.py
+  - python python/InstanceRequestHandler/test_InstanceReqHandler.py
+  - python python/TrialLifecycleHandler/test_triallifecycle.py
+  - python python/TrialRequestHandler/mock_file.py
+  - python python/TrialStackBuilder/test_TrialStackBuilder.py
