@@ -69,8 +69,6 @@ class FulfillmentHandler:
     def run(self):
         try:
             items = self.readFromTable(self.tableName)
-            if items is None:
-                raise ValueError('Cannot read from table')
             for item in items:
                 leadId = item['LeadId']
                 print ('The unfulfilled request with the leadId {}, is retrieved from the trial request table.'.format(leadId))

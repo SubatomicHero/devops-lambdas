@@ -138,6 +138,16 @@ class TestFulfillmentHandlerLambda(unittest.TestCase):
         assert code == 200 
         print ('Test run function returns 200: passed\n')
 
+    @mock_dynamodb2
+    @mock_sns
+    def test_run_noTable(self):
+        name = None
+        topicArn = self.createSNSTopic()
+        testInstance = FulfillmentHandler(name, topicArn)
+        code = testInstance.run()
+        assert code == None
+        print ('Test run function with no table: passed\n')
+
     @mock_sns
     @mock_dynamodb2
     def test_run_noReq(self):
