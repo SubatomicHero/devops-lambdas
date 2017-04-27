@@ -147,6 +147,14 @@ class TrialStackBuilder:
                         'ParameterKey' : 'ControlArchitectureName',
                         'ParameterValue' : "online-trial-control-{}".format(self.stage)
                     },
+                    {
+                        'ParameterKey' : 'AdminUsername',
+                        'ParameterValue' : os.environ['username']
+                    },
+                    {
+                        'ParameterKey' : 'AdminPassword',
+                        'ParameterValue' : os.environ['password']
+                    }
                 ],
                 Capabilities = [
                     'CAPABILITY_IAM',
