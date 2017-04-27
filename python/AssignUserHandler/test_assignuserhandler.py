@@ -1,6 +1,5 @@
 from assign_user_handler import AssignUserHandler
 from moto import mock_dynamodb2, mock_sqs, mock_ec2, mock_cloudformation
-from marketo import Marketo, MarketoAPIError
 import unittest
 import requests
 import httpretty
