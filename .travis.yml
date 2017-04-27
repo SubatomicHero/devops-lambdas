@@ -9,7 +9,6 @@ python:
 install:
   - pip install boto3
   - pip install moto
-  - pip install httpretty
 
 script:
   - python python/AssignUserHandler/test_assignuserhandler.py
