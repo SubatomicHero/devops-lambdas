@@ -1,13 +1,14 @@
 from __future__ import print_function
-from marketo import Marketo, MarketoAPIError
-import boto3
-from botocore.exceptions import ClientError
 import string
 import time
 import random
 import json
 import os
 import requests
+import boto3
+
+from marketo import Marketo, MarketoAPIError
+from botocore.exceptions import ClientError
 
 class AssignUserHandler:
   def __init__(self, api_host, client_id, client_secret, queue_url=None):
@@ -21,6 +22,8 @@ class AssignUserHandler:
       self.marketo_client = Marketo(host=api_host, client_id=client_id, client_secret=client_secret)
     except requests.ConnectionError as err:
       print("Cannot authenticate with Marketo: {}".format(err))
+    except Exception as oth:
+      print("Unknown error occured: {}".format(oth))
     self.SUCCESS = 'SUCCESS'
     self.FAILED = 'FAILED'
 
