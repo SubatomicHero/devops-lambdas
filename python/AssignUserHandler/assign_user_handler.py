@@ -1,13 +1,14 @@
 from __future__ import print_function
-from marketo import Marketo, MarketoAPIError
-import boto3
-from botocore.exceptions import ClientError
 import string
 import time
 import random
 import json
 import os
 import requests
+import boto3
+
+from marketo import Marketo, MarketoAPIError
+from botocore.exceptions import ClientError
 
 class AssignUserHandler:
   def __init__(self, api_host, client_id, client_secret, queue_url=None):
@@ -21,6 +22,8 @@ class AssignUserHandler:
       self.marketo_client = Marketo(host=api_host, client_id=client_id, client_secret=client_secret)
     except requests.ConnectionError as err:
       print("Cannot authenticate with Marketo: {}".format(err))
+    except Exception as oth:
+      print("Unknown error occured: {}".format(oth))
     self.SUCCESS = 'SUCCESS'
     self.FAILED = 'FAILED'
 
@@ -259,17 +262,12 @@ class AssignUserHandler:
       print("run(): {}".format(err))
     return self.FAILED
 
-api_host = os.environ['api_host']
-client_id = os.environ['client_id']
-client_secret = os.environ['client_secret']
-queue_url = os.environ['sqs_read_url']
-cls = AssignUserHandler(api_host, client_id, client_secret, queue_url)
-# cls = AssignUserHandler(
-#   "https://453-liz-762.mktorest.com",
-#   "35a7e1a3-5e60-40b2-bd54-674680af2adc",
-#   "iPPgKiB224jsa02duwPcKy9ox7078P7S",
-#   "queue_url"
-# )
+cls = AssignUserHandler(
+  os.getenv('api_host', "https://453-liz-762.mktorest.com"),
+  os.getenv('client_id', "35a7e1a3-5e60-40b2-bd54-674680af2adc"),
+  os.getenv('client_secret', "thesecret"),
+  os.getenv('sqs_read_url', "queue_url")
+)
 
 def handler(event, context):
   try:

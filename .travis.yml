@@ -1,0 +1,19 @@
+language: python
+env:
+  global:
+    - AWS_DEFAULT_REGION=us-east-1
+    - secure: "qJlwGvOp8GRPToRPSdJiFRZWKCsIk6BpYUXdm3lLTFRl0Ctto49U9XcclXMr1ERaHDd2t4TTBV0noxIZcrkkEfUcbukyKsF/l8PG9eqMZUHxqPk+njuxp+LNB4Xrk+8kg7XLkAL7RffHIbNH6EvVMCQsy9YIi5A3Nnqn+f45wbWcBaOYQ1/nR1BJ/cOfeh4Ccio84WN6A2yCMR02O45gVq2um4bum8STtW3FGZzQejrt7Iu4WwSju5vAqasfnrZ9SiMKOBPCdj04TNiwROE0ytXqo81XW68LWBJu2b/Q/tS7eo/AAUa5OgVBlvI1hC2+ET65lh5YZEANAqZydTSUCCNug87OIyZq81GwjcvMPXvm/h9KrO36ahjyeXQMhnacNSHx8x+wDeAS/Z6Mnj6whKvNftK6eAhvmkXZgMnXlnaNTd9Pe/+VncJjh9XI4Ya/lcHban7AGidp66/vskkrm/O1qQ4wLQhrpeJKQdpClz6yZZNCpHj+C8pNT2IvA2ISkxdcAUuBpIUgWTQgjbUohOaBu7S9kM+edf+BLdtFjgbKg2MNJ5NLCJTzKfopEPr4yqkCYDneFCmIR/Iipl8UXuxHLHm4K4+4UoKSpAqXQlBOzWwNaEoj3H4325BcyDxXhw/PAvT12viFsBErGn9a2wSyBljdb4Oujus+woFa4Cg="
+    - secure: "CWuJotTemV/SEsYejRsCLFcfVZwre44q2hhMSPWJFTU3P3oRBj7WX3jDgGkE3DYkMVuuH8VAZS9Fua6Gx3UcEEs7oaGEB7uzGYe7IirpuckOGpQb47p1uwLpEvGYwW6enz9uhKrEZYYHPklDgdeEQk+WYGqyNNrKKyA2LXj4t0bmIaDjJYHV0KzfNpw0uwbzcEC05VY8PDmYP/Y2gwntc73tLiTL6tooKcLFT8T8UGd6Py+fV5FF+y9RAr+D6kil+ZKDl11EBEX2aU+iMi1BngIQ46c/AWsqdV7TpvJVe89aVi1Zt3tUnvukVAL1Kse0RmJUrdrVWo89oqFlLUBH3WKHQEwLCYC+snMIh8uO5XtEmUczuHoPueBlr6eSouUIpz1tWvxh22gqLcAhLrz/8h+OxZrEsqLgGUBtJPx6LnaNH/i84SMI6C6MaLxfgaWq4ozU702SHqcaZebI0p/VbilyWd1O65dHG39aZxh8ZRol741q4AN6e4K8QM1DTOakhZYOYyxTQyb7blhM1EoYb6PdkInLr34vUlf8lPQNRdVHwRStXECTd5EZHHBd5Ugrvtd6dckCci8BlpXk4p+Qf4hHmPWZoiUGxaIySmv9N6xhiEoBh5fiejAf3Zexl7ryppPFtGaxmqIJBECkd+Gr95+Wu66JmrVGzw9FsHnZjUg="
+python:
+  - 2.7
+install:
+  - pip install boto3
+  - pip install moto
+  - pip install sure
+script:
+  - python python/AssignUserHandler/test_assignuserhandler.py
+  - python python/FulfillmentHandler/test_FulfillmentHandler.py
+  - python python/InstanceRequestHandler/test_InstanceReqHandler.py
+  - python python/TrialLifecycleHandler/test_triallifecycle.py
+  # - python python/TrialRequestHandler/mock_file.py until the test is fixed
+  - python python/TrialStackBuilder/test_TrialStackBuilder.py
