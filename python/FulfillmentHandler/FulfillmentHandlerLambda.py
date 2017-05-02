@@ -2,7 +2,7 @@ from __future__ import print_function
 import json, os, boto3, json, six, ast, time
 
 class FulfillmentHandler:
-    def __init__(self, table = os.environ['trial_request_table'], topic = os.environ['topic_arn']):
+    def __init__(self, table=os.getenv('trial_request_table', None), topic=os.getenv('topic_arn', None)):
         try:
             self.sns_client = boto3.client('sns')
             self.dynamo_res = boto3.resource('dynamodb')

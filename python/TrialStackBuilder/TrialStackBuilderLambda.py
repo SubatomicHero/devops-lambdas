@@ -4,7 +4,7 @@ import six
 import uuid, os
 
 class TrialStackBuilder:
-    def __init__(self, bucketname = os.environ['template_bucket_name'], stage = os.environ['stage']):
+    def __init__(self, bucketname=os.getenv('template_bucket_name', 'online-trial-control-tes-onlinetrialstacktemplate-gt9u28jnoe48'), stage=os.getenv('stage', 'test')):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.ec2_client = boto3.client('ec2')
@@ -26,7 +26,7 @@ class TrialStackBuilder:
             # only return stacks that are trial stacks, not other stacks in the list
             stacks = []
             for stack in response['Stacks']:
-                if stack['StackName'].startswith("trial-{}-".format(os.environ['stage'])):
+                if stack['StackName'].startswith("trial-{}".format(self.stage)):
                     stacks.append(stack)
             print("Returning {} stack(s)".format(len(stacks)))
             return stacks
@@ -149,11 +149,11 @@ class TrialStackBuilder:
                     },
                     {
                         'ParameterKey' : 'AdminUsername',
-                        'ParameterValue' : os.environ['username']
+                        'ParameterValue' : os.getenv('username', 'admin')
                     },
                     {
                         'ParameterKey' : 'AdminPassword',
-                        'ParameterValue' : os.environ['password']
+                        'ParameterValue' : os.getenv('password', 'admin')
                     }
                 ],
                 Capabilities = [
@@ -181,7 +181,7 @@ class TrialStackBuilder:
         try:
             if event['source'] is None:
                 raise ValueError('Cannot find any event to the lambda')
-            stack_count = int(os.environ['stack_count'])
+            stack_count = int(os.getenv('stack_count', '5'))
             if stack_count is None:
                 raise ValueError('Cannot find any stack count')
             source = event['source']
