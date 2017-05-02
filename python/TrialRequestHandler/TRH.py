@@ -72,7 +72,7 @@ def lambda_handler(event, context):
         if 'Records' in event:
             print('Getting message from SNS')
             for record in event['Records']:
-                message = record['Sns']['Message']
+                message = json.loads(record['Sns']['Message'])
                 get_source = message['source']
                 lead_id = message['lead']
                 print("From SNS: {}".format(message))
