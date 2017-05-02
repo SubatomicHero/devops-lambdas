@@ -1,6 +1,5 @@
-
 from moto import mock_cloudformation, mock_ec2, mock_s3, mock_lambda
-import unittest,boto, boto3,requests,sure,time,json,uuid, os
+import unittest, boto, boto3, requests, sure, time, json, uuid, os
 from botocore.exceptions import ClientError
 from nose.tools import assert_raises
 from TrialStackBuilderLambda import TrialStackBuilder
@@ -61,6 +60,7 @@ TSB = TrialStackBuilder()
 
 class TestTrialStackBuilder(unittest.TestCase):
     def test_instance(self):
+        print("test_instance()")
         self.assertIsNotNone(TSB.cloud_client)
         self.assertIsNotNone(TSB.ec2_client)
         self.assertIsNotNone(TSB.s3_client)
@@ -100,7 +100,7 @@ class TestTrialStackBuilder(unittest.TestCase):
         }
         template = json.dumps(dummy_template)
         return TSB.cloud_client.create_stack(
-            StackName="test_stack",
+            StackName="trial-test_stack",
             TemplateBody=template
         )
         
@@ -111,6 +111,7 @@ class TestTrialStackBuilder(unittest.TestCase):
     
     @mock_cloudformation
     def test_listStack(self):
+        print("test_listStack()")
         self.build_stack()
         stacks = TSB.listStack()
         self.assertIsNotNone(stacks)
