@@ -6,7 +6,7 @@ import json
 import six
 
 class InstanceRequestHandler:
-    def __init__(self, read_url = os.environ['sqs_read_url'], publish_url = os.environ['sqs_publish_url']):
+    def __init__(self, read_url=os.getenv('sqs_read_url', 'read-url'), publish_url=os.getenv('sqs_publish_url', 'publish-url')):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.sqs_client = boto3.client('sqs')
@@ -69,7 +69,7 @@ class InstanceRequestHandler:
                 for output in stack['Outputs']:
                     if output['OutputKey'] == "Type" and output['OutputValue'] == "Trial":
                         trial = True
-                    if output['OutputKey'] == "Stage" and output['OutputValue'] == os.environ['stage']:
+                    if output['OutputKey'] == "Stage" and output['OutputValue'] == os.getenv('stage', 'test'):
                         test = True
                 if trial and test:
                     return stack
