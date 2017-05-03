@@ -1,4 +1,5 @@
 from __future__ import print_function
+from datetime import datetime, timedelta
 import json
 import os
 import boto3
@@ -84,6 +85,7 @@ class InstanceRequestHandler:
                 tagKey = tag['Key']
                 if tagKey == 'Allocated':
                     if tag['Value'] == 'false':
+                        d = datetime.today() + timedelta(days=14)
                         response = self.ec2_client.create_tags(
                             Resources = [
                                 instanceId,
@@ -93,6 +95,10 @@ class InstanceRequestHandler:
                                     'Key': 'Allocated',
                                     'Value': 'true'
                                 },
+                                {
+                                    'Key': 'ExpiryDate',
+                                    'Value': d.date().strftime('%d-%m-%Y')
+                                }
                             ]
                         )
                     return True
