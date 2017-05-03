@@ -141,59 +141,60 @@ class InstanceRequestHandler:
             
     def run(self):
         try:
-            stackList = self.describeStack()
-            if stackList is None:
-                raise ValueError('No valid stack could be found')
-            trialStack = self.findStack(stackList)
-            if trialStack is None:
-                raise ValueError('No Stack could be found')
-            stackId = trialStack['StackId']
-            trialStackOutputs = trialStack['Outputs']
-            stackUrl = self.findOutputKeyValue(trialStackOutputs, 'Url')
-            if (stackId is None) or (stackUrl is None) :
-                raise ValueError('No valid stack id could be found')
-            instanceId = self.findOutputKeyValue(trialStackOutputs, 'InstanceId')
-            if instanceId is None:
-                raise ValueError('No instance id could be found')
-            print("The StackId of the stack is: {}".format(stackId))
-            print("The StackURL of the stack is: {}".format(instanceId))
-            print("The InstanceId of the stack is: {}".format(stackUrl))
-            instanceTags = self.allocateInstance(instanceId)
-            if instanceTags:
-                print('The instance is allocated')
+            # get messages from queue
             response = self.receiveMessage(self.read_url)
             if response is None:
                 raise ValueError('No valid queue exists to receive a message')
+            
+            if "Messages" in response:
+                # we have messages to process, 1 or more
+                messages = response['Messages']
+                msg_id = []
+                for message in messages:
+                    print("Received message: {}".format(message['Body']))
+                    if message['MessageId'] in msg_id:
+                        print("Message {} already read".format(message['MessageId']))
+                    else:
+                        # we havent processed this message yet
+                        msg_id.append(message['MessageId'])
+                        print ('The Message {} is read.'.format(message['MessageId']))
+                        m = self.sqs_res.Message(self.read_url, message['ReceiptHandle'])
+
+                        # Allocate an instance
+                        stackList = self.describeStack()
+                        if stackList is None:
+                            raise ValueError('No valid stack could be found')
+                        trialStack = self.findStack(stackList)
+                        if trialStack is None:
+                            raise ValueError('No Stack could be found')
+                        stackId = trialStack['StackId']
+                        trialStackOutputs = trialStack['Outputs']
+                        stackUrl = self.findOutputKeyValue(trialStackOutputs, 'Url')
+                        if (stackId is None) or (stackUrl is None) :
+                            raise ValueError('No valid stack id could be found')
+                        instanceId = self.findOutputKeyValue(trialStackOutputs, 'InstanceId')
+                        if instanceId is None:
+                            raise ValueError('No instance id could be found')
+                        print("The StackId of the stack is: {}".format(stackId))
+                        print("The StackURL of the stack is: {}".format(instanceId))
+                        print("The InstanceId of the stack is: {}".format(stackUrl))
+                        instanceTags = self.allocateInstance(instanceId)
+                        if instanceTags:
+                            print('The instance is allocated')
+
+                        messageBody = json.dumps(message['Body'])
+                        response = self.sendMessage(self.publish_url, stackId, stackUrl, messageBody)
+                        if response is None:
+                            raise ValueError('No valid queue exists to send a message')
+                        print("The Message {} is sent.".format(response['MessageId']))
+                        try:
+                            m.delete()
+                            print("The Message has been deleted")
+                        except Exception as err:
+                            raise err
+                print("All messages read and processed")
             else:
-                if "Messages" in response:
-                    messages = response['Messages']
-                    unread = False
-                    msg_id = []
-                    for i in range(len(messages)):
-                        message = messages[i]
-                        print('Recieved message: {}'.format(message['Body']))
-                        if message['MessageId'] in msg_id:
-                            print ('Message already read.')
-                            if(i == messages[len(messages)-1] and not(unread)):
-                                print ('All Messages in the queue have been already read.')
-                                return 200
-                        else:
-                            msg_id.append(message['MessageId'])
-                            unread = True
-                            print ('The Message {} is read.'.format(message['MessageId']))
-                            m = self.sqs_res.Message(self.read_url, message['ReceiptHandle'])
-                            messageBody = json.dumps(message['Body'])
-                            response = self.sendMessage(self.publish_url, stackId, stackUrl, messageBody)
-                            if response  is None:
-                                raise ValueError('No valid queue exists to send a message')
-                            print ('The Message {} is sent.'.format(response['MessageId']))
-                            try:
-                                m.delete()
-                            except Exception as err:
-                                raise err
-                            print ('The Message {} is sent.'.format(m))
-                else:
-                    print('No message in the queue')
+                print("No messages to read")
         except Exception as err:
             print("{}\n".format(err))
             return 'FAILURE'
