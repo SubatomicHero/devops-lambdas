@@ -149,21 +149,14 @@ class InstanceRequestHandler:
             if "Messages" in response:
                 # we have messages to process, 1 or more
                 messages = response['Messages']
-                unread = False
                 msg_id = []
-                for i in range(len(messages)):
-                    message = messages[i]
-                    print('Received message: {}'.format(message['Body']))
+                for message in messages:
+                    print("Received message: {}".format(message['Body']))
                     if message['MessageId'] in msg_id:
-                        print ('Message already read.')
-                        if(i == messages[len(messages)-1] and not(unread)):
-                            print ('All Messages in the queue have been already read.')
-                            return 200
-                        print("More messages to process still..")
+                        print("Message {} already read".format(message['MessageId']))
                     else:
                         # we havent processed this message yet
                         msg_id.append(message['MessageId'])
-                        unread = True
                         print ('The Message {} is read.'.format(message['MessageId']))
                         m = self.sqs_res.Message(self.read_url, message['ReceiptHandle'])
 
@@ -199,6 +192,7 @@ class InstanceRequestHandler:
                             print("The Message has been deleted")
                         except Exception as err:
                             raise err
+                print("All messages read and processed")
             else:
                 print("No messages to read")
         except Exception as err:
