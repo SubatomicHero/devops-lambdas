@@ -1,4 +1,4 @@
-PAAS-ECM AWS Lambdas
+Alfresco DevOps Lambdas
 ---
 
-Project containing all the lambdas used by DevOps for PAAS-ECM
+Project containing all the lambdas used by DevOps
