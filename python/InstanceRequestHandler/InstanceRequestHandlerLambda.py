@@ -188,8 +188,7 @@ class InstanceRequestHandler:
                         if instanceTags:
                             print('The instance is allocated')
 
-                        messageBody = json.dumps(message['Body'])
-                        response = self.sendMessage(self.publish_url, stackId, stackUrl, messageBody)
+                        response = self.sendMessage(self.publish_url, stackId, stackUrl, message['Body'])
                         if response is None:
                             raise ValueError('No valid queue exists to send a message')
                         print("The Message {} is sent.".format(response['MessageId']))
