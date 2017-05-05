@@ -9,12 +9,6 @@ import os
 import requests
 import httpretty
 
-os.environ['sqs_url'] = ""
-os.environ['trial_request_table'] = ""
-os.environ['api_host'] = ""
-os.environ['client_id'] = ""
-os.environ['client_secret'] = ""
-
 response = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
 TRH = TrialRequestHandler()
 
@@ -23,27 +17,57 @@ class TestTrialRequestHandler(unittest.TestCase):
         self.assertIsNotNone(TRH.dynamo_client)
         self.assertIsNotNone(TRH.sqs_client)
 
-    # @httpretty.activate
-    # def test_assign_user_to_stack(self):
-    #     httpretty.register_uri(
-    #         httpretty.GET,
-    #         "https://453-liz-762.mktorest.com/identity/oauth/token",
-    #         body=json.dumps(response)
-    #     )
-    #     r =  TRH._get_access_token('https://453-liz-762.mktorest.com/')
-        # self.assertTrue(response)
-
-    # def test_details_marketo(self):
-    #     try:
-    #         id_test = '89406'
-    #         print ('f')
-    #         result = TRH.details_marketo(id_test)
-    #         expected_result = {"requestId": "aa09#15b3ee9bc02", "success": True, "result": [{"firstName": "UNKNOWN", "lastName": "UNKNOWN", "id": 89406, "updatedAt": "2017-03-16T11:48:42Z", "email": "daniel.taylor@alfresco.com", "createdAt": "2016-08-23T11:30:55Z"}]}
-    #         print (result)
-    #         assert result == expected_result
-    #         print("test passed")
-    #     except IOError:
-    #         print("test failed. an error has been found")
+    @httpretty.activate
+    def test_get_access_token(self):
+        try: 
+            host = 'http://example.com/'
+            client_id = "usee"
+            client_secret = "pass"
+            json_body = json.dumps({'access_token': '123'})
+            p = {
+                    'grant_type':'client_credentials',
+                    'client_id': client_id,
+                    'client_secret': client_secret
+                }
+            httpretty.register_uri(
+                httpretty.GET, host, 
+                body = json_body, 
+                content_type = 'application/json',
+                status=200,
+                params = p
+            ) 
+            response = TRH._get_access_token(host, client_id, client_secret)
+            assert response == '123' 
+            print("Test get_access_token : passed")
+        except IOError:
+            print("test failed. an error has been found")
+            
+    def test_details_marketo(self):
+        try:
+            id_test = '89406'
+            access_token = '123'
+            host = 'http://example.com/'
+            json_body = json.dumps({'access_token': '123'})
+            p = {
+                    'access_token': access_token,
+                    'filterType': 'id',
+                    'filterValues': id_test
+                }
+            httpretty.register_uri(
+                httpretty.GET, host, 
+                body = json_body, 
+                content_type = 'application/json',
+                status=200,
+                params = p
+            ) 
+            r = requests.get(host, params=p)
+            # data = json.loads(r.content.decode('utf-8'))
+            # print(data)
+            # # result = TRH.details_marketo(host, id_test, access_token)
+            
+            print("test passed")
+        except IOError:
+            print("test failed. an error has been found")
 
     @mock_dynamodb2
     def test_dynamo_service(self):
