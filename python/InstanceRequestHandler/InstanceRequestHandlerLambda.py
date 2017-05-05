@@ -67,13 +67,24 @@ class InstanceRequestHandler:
         test = False
         for stack in stackList:
             if stack['StackStatus'] == "CREATE_COMPLETE":
+                instance_id = None
                 for output in stack['Outputs']:
                     if output['OutputKey'] == "Type" and output['OutputValue'] == "Trial":
                         trial = True
                     if output['OutputKey'] == "Stage" and output['OutputValue'] == os.getenv('stage', 'test'):
                         test = True
-                if trial and test:
-                    return stack
+                    if output['OutputKey'] == 'InstanceId':
+                        instance_id = output['OutputValue']
+                if trial and test and instance_id:
+                    instance = self.findInstance(instance_id)
+                    if instance is None:
+                        raise ValueError('Every Stack must have an instance id')
+                    for tag in instance['Tags']:
+                        tagKey = tag['Key']
+                        if tagKey == 'Allocated':
+                            if tag['Value'] == 'false':
+                                return stack
+                            break
         return None
         
     def allocateInstance(self, instanceId):
@@ -182,8 +193,8 @@ class InstanceRequestHandler:
                         if instanceId is None:
                             raise ValueError('No instance id could be found')
                         print("The StackId of the stack is: {}".format(stackId))
-                        print("The StackURL of the stack is: {}".format(instanceId))
-                        print("The InstanceId of the stack is: {}".format(stackUrl))
+                        print("The StackURL of the stack is: {}".format(stackUrl))
+                        print("The InstanceId of the stack is: {}".format(instanceId))
                         instanceTags = self.allocateInstance(instanceId)
                         if instanceTags:
                             print('The instance is allocated')
