@@ -91,42 +91,58 @@ class TrialRequestHandler:
         else:
             return None
 
+    def run(self):
+        try:
+            if 'Records' in event:
+                print('Getting message from SNS')
+                for record in event['Records']:
+                    message = json.loads(record['Sns']['Message'])
+                    get_source = message['source']
+                    lead_id = message['lead']
+                    print("From SNS: {}".format(message))
+                    if get_source == "onlinetrial":
+                        print("Processing online trial request")
+                        response = handler.details_marketo(lead_id)
+                        count_attempts = 1
+                        while response is None and count_attempts <= 10:
+                            try:
+                                print("Trying again after 10 seconds")
+                                count_attempts += 1
+                                time.sleep(10)
+                                response = handler.details_marketo(lead_id)
+                            except IOError as ioerr:
+                                print("Marketo error: {}".format(ioerr))
+                        
+                        if response:
+                            print("Details received from marketo: {}".format(response))
+                        fulfilled_test = 'y' if response is not None else 'n'
+                        try:
+                            if handler.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
+                                print("Record inserted to DB")
+                                if handler.send_to_SQS(response) is not None:
+                                    print("Message sent to queue")
+                            else:
+                                print("Not sending message to queue, unable to get response from Marketo")
+                        except IOError as ioerr:
+                            print("no response from dynamodb (unfulfilled)")
+        except EOFError:
+            print("lambda handler failed")
+        else: 
+            return None
+
 handler = TrialRequestHandler()
 
 # main lambda function
 def lambda_handler(event, context):
     try:
-        if 'Records' in event:
-            print('Getting message from SNS')
-            for record in event['Records']:
-                message = json.loads(record['Sns']['Message'])
-                get_source = message['source']
-                lead_id = message['lead']
-                print("From SNS: {}".format(message))
-                if get_source == "onlinetrial":
-                    print("Processing online trial request")
-                    response = handler.details_marketo(lead_id)
-                    count_attempts = 1
-                    while response is None and count_attempts <= 10:
-                        try:
-                            print("Trying again after 10 seconds")
-                            count_attempts += 1
-                            time.sleep(10)
-                            response = handler.details_marketo(lead_id)
-                        except IOError as ioerr:
-                            print("Marketo error: {}".format(ioerr))
-                    
-                    if response:
-                        print("Details received from marketo: {}".format(response))
-                    fulfilled_test = 'y' if response is not None else 'n'
-                    try:
-                        if handler.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
-                            print("Record inserted to DB")
-                            if handler.send_to_SQS(response) is not None:
-                                print("Message sent to queue")
-                        else:
-                            print("Not sending message to queue, unable to get response from Marketo")
-                    except IOError as ioerr:
-                        print("no response from dynamodb (unfulfilled)")
-    except EOFError:
-        print("lambda handler failed")
+        res = handler.run()
+        if res == 'FAILURE':
+            print ('The run function has failed')
+            raise ValueError
+        print("All OK")
+        return 200
+    except Exception as err:
+        print("{}\n".format(err))
+    else:
+        return ('FAILURE')
+

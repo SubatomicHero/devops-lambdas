@@ -1,7 +1,7 @@
 import boto3
 from moto import mock_sqs
 from moto import mock_dynamodb2
-from TRH import TrialRequestHandler
+from TrialRequestHandlerLambda import TrialRequestHandler
 import unittest
 import datetime
 import time
