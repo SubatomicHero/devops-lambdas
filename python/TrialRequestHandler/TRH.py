@@ -52,7 +52,7 @@ class TrialRequestHandler:
         try:
             curr_date = time.strftime("%d/%m/%Y")
             request_time = '0'
-            if not response_m:
+            if response_m:
                 dt = datetime.strptime(response_m['result'][0]['createdAt'], "%Y-%m-%dT%H:%M:%SZ")
                 request_time = int(time.mktime(dt.timetuple()) + (dt.microsecond / 1000000.0))
             
