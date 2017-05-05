@@ -162,6 +162,9 @@ class LifecycleHandler:
                   if self.terminate_stack(stack) is None:
                     raise Exception("Unable to terminate stack {}".format(stack['StackName']))
                   break
+                elif state['State']['Name'] == 'stopping':
+                  # the instance is still stopping
+                  print("Skipping {}, its still stopping".format(instance_id))
             else:
               print("{} has not expired yet.".format(stack['StackName']))
               break
