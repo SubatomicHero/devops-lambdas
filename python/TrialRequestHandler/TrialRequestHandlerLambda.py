@@ -6,43 +6,57 @@ import boto3
 import time
 import requests
 
-dynamo_client = boto3.client('dynamodb')
-sqs_client = boto3.client('sqs')
+
+
+os.environ['sqs_url'] = ""
+os.environ['trial_request_table'] = ""
+os.environ['api_host'] = "https://453-liz-762.mktorest.com/"
+os.environ['client_id'] = "35a7e1a3-5e60-40b2-bd54-674680af2adc"
+os.environ['client_secret'] = "iPPgKiB224jsa02duwPcKy9ox7078P7S"
 
 class TrialRequestHandler:
-    def __init__(self):
+    def __init__(self, url = os.environ['sqs_url'], host = os.environ['api_host']):
         self.access_token = None
+        self.sqsUrl = url
+        self.dynamo_client = boto3.client('dynamodb')
+        self.sqs_client = boto3.client('sqs')
+        self.host = host
 
-    def _get_access_token(self):
+    def _get_access_token(self, host):
         """Authenticates with Marketo, returning the token to use for future requests"""
-        print("_get_access_token()")
         try:
             p = {
                 'grant_type':'client_credentials',
                 'client_id': os.environ['client_id'],
                 'client_secret': os.environ['client_secret']
             }
-            r = requests.get("{}/identity/oauth/token".format(os.environ['api_host']), params=p)
+            r = requests.get("{}/identity/oauth/token".format(host), params=p)
             data = json.loads(r.content.decode('utf-8'))
             self.access_token = data['access_token']
             print("Access token acquired")
         except requests.HTTPError as err:
             print("_authenticate(): {}".format(err))
 
-    def details_marketo(self, lead_id):
+    def details_marketo(self, lead_id, host):
         """function to obtain the details regarding the lead_id passed as a parameter"""
-        print("details_marketo(): Getting lead info for {}".format(lead_id))
         try:
-            self._get_access_token()
-            p = {
-                'access_token': self.access_token,
-                'filterType': 'id',
-                'filterValues': lead_id
-            }
-            r = requests.get("{}/rest/v1/leads.json".format(os.environ['api_host']), params=p)
-            data = json.loads(r.content.decode('utf-8'))
-            return data
-        except request.HTTPError as err:
+            if lead_id :
+                print("details_marketo(): Getting lead info for {}".format(lead_id))
+                self._get_access_token(host)
+                p = {
+                    'access_token': self.access_token,
+                    'filterType': 'id',
+                    'filterValues': lead_id
+                }
+                print ('1')
+                r = requests.get("{}/rest/v1/leads.json".format(os.environ['api_host']), params=p)
+                print ('2')
+                data = json.loads(r.content.decode('utf-8'))
+                print(data)
+                return data
+            else:
+                raise ValueError('No valid lead_id')
+        except requests.HTTPError as err:
             print("details_marketo(): {}".format(err))
         else:
             return None
@@ -50,44 +64,52 @@ class TrialRequestHandler:
     def insert_into_dynamo(self, lead_id, response_m, fulfilled_test, count_attempts):
         """function to insert the request in the dynamodB table for the Trial Request Handler"""
         try:
-            curr_date = time.strftime("%d/%m/%Y")
-            request_time = '0'
-            if response_m:
+            if lead_id and response_m and fulfilled_test and count_attempts:
+                curr_date = time.strftime("%d/%m/%Y")
+                request_time = '0'
                 dt = datetime.strptime(response_m['result'][0]['createdAt'], "%Y-%m-%dT%H:%M:%SZ")
                 request_time = int(time.mktime(dt.timetuple()) + (dt.microsecond / 1000000.0))
-            
-            response = dynamo_client.update_item(
-                TableName=os.environ['trial_request_table'],
-                Key={
-                    'LeadId': {"N": str(lead_id)},
-                    'Date': {"S": curr_date}
-                },
-                UpdateExpression="set #Fulfilled=:f, #Attempts=:a, #RequestTime=:rt, #RequestMsg=:rm",
-                ExpressionAttributeNames={
-                    '#Fulfilled': "Fulfilled",
-                    '#Attempts': "Attempts",
-                    '#RequestTime': "RequestTime",
-                    '#RequestMsg': "RequestMsg"
-                },
-                ExpressionAttributeValues={
-                    ':f': {"S": fulfilled_test},
-                    ':a': {"N": str(count_attempts)},
-                    ':rt': {"S": str(request_time)},
-                    ':rm': {"S": json.dumps(response_m)}
-            })
-            print("Update item succeeded")
-            return True if response_m else False
+                
+                response = self.dynamo_client.update_item(
+                    TableName=os.environ['trial_request_table'],
+                    Key={
+                        'LeadId': {"N": str(lead_id)},
+                        'Date': {"S": curr_date}
+                    },
+                    UpdateExpression="set #Fulfilled=:f, #Attempts=:a, #RequestTime=:rt, #RequestMsg=:rm",
+                    ExpressionAttributeNames={
+                        '#Fulfilled': "Fulfilled",
+                        '#Attempts': "Attempts",
+                        '#RequestTime': "RequestTime",
+                        '#RequestMsg': "RequestMsg"
+                    },
+                    ExpressionAttributeValues={
+                        ':f': {"S": fulfilled_test},
+                        ':a': {"N": str(count_attempts)},
+                        ':rt': {"S": str(request_time)},
+                        ':rm': {"S": json.dumps(response_m)}
+                })
+                print("Update item succeeded")
+                return True 
+            else:
+                raise ValueError('Valid lead_id, response_m, fulfilled_test and count_attempts are needed')
         except:
             raise IOError('an error has been found. Data not inserted into the table')
         else:
             return None
 
-    def send_to_SQS(self, response):
+    def send_to_SQS(self, sqsUrl, response):
         """function to send the response from marketo to the SQS"""
         try:
-            return sqs_client.send_message(QueueUrl=os.environ['sqs_url'], MessageBody=json.dumps(response))
+            if response:
+                response = self.sqs_client.send_message(QueueUrl = sqsUrl, MessageBody = json.dumps(response))
+                return response
+            else:
+                raise ValueError('Valid message is needed')
         except IOError as ioerr:
             raise IOError("an error has been found. Message not been sent to the queue: {}".format(ioerr))
+        except Exception as err:
+            print("{}\n".format(err))
         else:
             return None
 
@@ -102,24 +124,23 @@ class TrialRequestHandler:
                     print("From SNS: {}".format(message))
                     if get_source == "onlinetrial":
                         print("Processing online trial request")
-                        response = handler.details_marketo(lead_id)
+                        response = self.details_marketo(lead_id, self.host)
                         count_attempts = 1
                         while response is None and count_attempts <= 10:
                             try:
                                 print("Trying again after 10 seconds")
                                 count_attempts += 1
                                 time.sleep(10)
-                                response = handler.details_marketo(lead_id)
+                                response = self.details_marketo(lead_id, self.host)
                             except IOError as ioerr:
                                 print("Marketo error: {}".format(ioerr))
-                        
                         if response:
                             print("Details received from marketo: {}".format(response))
                         fulfilled_test = 'y' if response is not None else 'n'
                         try:
-                            if handler.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
+                            if self.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
                                 print("Record inserted to DB")
-                                if handler.send_to_SQS(response) is not None:
+                                if self.send_to_SQS(self.sqsUrl, response) is not None:
                                     print("Message sent to queue")
                             else:
                                 print("Not sending message to queue, unable to get response from Marketo")
@@ -130,12 +151,12 @@ class TrialRequestHandler:
         else: 
             return None
 
-handler = TrialRequestHandler()
+TRH = TrialRequestHandler()
 
 # main lambda function
 def lambda_handler(event, context):
     try:
-        res = handler.run()
+        res = TRH.run()
         if res == 'FAILURE':
             print ('The run function has failed')
             raise ValueError
