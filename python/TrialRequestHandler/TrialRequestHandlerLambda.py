@@ -15,42 +15,44 @@ os.environ['client_id'] = "35a7e1a3-5e60-40b2-bd54-674680af2adc"
 os.environ['client_secret'] = "iPPgKiB224jsa02duwPcKy9ox7078P7S"
 
 class TrialRequestHandler:
-    def __init__(self, url = os.environ['sqs_url'], host = os.environ['api_host']):
-        self.access_token = None
-        self.sqsUrl = url
+    def __init__(self, url = os.environ['sqs_url'], host = os.environ['api_host'], id = os.environ['client_id'], secret = os.environ['client_secret']):
         self.dynamo_client = boto3.client('dynamodb')
         self.sqs_client = boto3.client('sqs')
-        self.host = host
+        self.sqsUrl = url
+        self.host1 = "{}/identity/oauth/token".format(host)
+        self.host2 = "{}/rest/v1/leads.json".format(os.environ['api_host'])
+        self.client_id = id
+        self.client_pass = secret
 
-    def _get_access_token(self, host):
+    def _get_access_token(self, host, id, secret):
         """Authenticates with Marketo, returning the token to use for future requests"""
         try:
-            p = {
-                'grant_type':'client_credentials',
-                'client_id': os.environ['client_id'],
-                'client_secret': os.environ['client_secret']
-            }
-            r = requests.get("{}/identity/oauth/token".format(host), params=p)
-            data = json.loads(r.content.decode('utf-8'))
-            self.access_token = data['access_token']
-            print("Access token acquired")
+            if host and id and secret :
+                p = {
+                    'grant_type':'client_credentials',
+                    'client_id': id,
+                    'client_secret': secret
+                }
+                r = requests.get(host, params=p)
+                data = json.loads(r.content.decode('utf-8'))
+                print("Access token acquired")
+                return data['access_token']
+            else:
+                raise ValueError('Needed valid host, id and secret')
         except requests.HTTPError as err:
             print("_authenticate(): {}".format(err))
 
-    def details_marketo(self, lead_id, host):
+    def details_marketo(self, host, lead_id, access_token):
         """function to obtain the details regarding the lead_id passed as a parameter"""
         try:
-            if lead_id :
+            if lead_id and access_token :
                 print("details_marketo(): Getting lead info for {}".format(lead_id))
-                self._get_access_token(host)
                 p = {
-                    'access_token': self.access_token,
+                    'access_token': access_token,
                     'filterType': 'id',
                     'filterValues': lead_id
                 }
-                print ('1')
-                r = requests.get("{}/rest/v1/leads.json".format(os.environ['api_host']), params=p)
-                print ('2')
+                r = requests.get(host, params=p)
                 data = json.loads(r.content.decode('utf-8'))
                 print(data)
                 return data
@@ -124,14 +126,16 @@ class TrialRequestHandler:
                     print("From SNS: {}".format(message))
                     if get_source == "onlinetrial":
                         print("Processing online trial request")
-                        response = self.details_marketo(lead_id, self.host)
+                        access_token = self._get_access_token(self.host1, self.client_id, self.client_pass)
+                        response = self.details_marketo(self.host2, lead_id, access_token)
                         count_attempts = 1
                         while response is None and count_attempts <= 10:
                             try:
                                 print("Trying again after 10 seconds")
                                 count_attempts += 1
                                 time.sleep(10)
-                                response = self.details_marketo(lead_id, self.host)
+                                access_token = self._get_access_token(self.host1, self.client_id, self.client_pass)
+                                response = self.details_marketo(self.host2, lead_id, access_token)
                             except IOError as ioerr:
                                 print("Marketo error: {}".format(ioerr))
                         if response:
