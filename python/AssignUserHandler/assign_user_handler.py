@@ -104,7 +104,7 @@ class AssignUserHandler:
   def create_marketo_data(self, lead):
     """Parses the lead object and returns a dict that marketo expects"""
     try:
-      d = json.loads(lead['message'])
+      d = json.loads(lead['message']) if isinstance(lead, basestring) else lead['message']
       return {
         "lastName": d['result'][0]['lastName'],
         "firstName": d['result'][0]['firstName'],
@@ -180,7 +180,7 @@ class AssignUserHandler:
     """Adds an item to the designated dynamo table"""
     if (self.is_valid_message(item)):
       assign_time = lambda: int(round(time.time() * 1000))
-      m = json.loads(item['message'])
+      m = json.loads(item['message']) if isinstance(item['message'], basestring) else item['message']
       response = self.dynamo_client.update_item(
         TableName=tablename,
         Key={
@@ -200,7 +200,7 @@ class AssignUserHandler:
         ExpressionAttributeValues={
           ':a': {"S": str(True)},
           ':t': {"S": str(assign_time())},
-          ':u': {"S": item['message']}
+          ':u': {"S": str(m)}
         }
       )
       return response and response['ResponseMetadata']['HTTPStatusCode'] == 200
