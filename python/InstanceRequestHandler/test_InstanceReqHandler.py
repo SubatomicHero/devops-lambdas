@@ -153,9 +153,12 @@ class TestInstanceRequestHandler(unittest.TestCase):
         stack['StackStatus'].should.equal('CREATE_COMPLETE')
         print("Test 'describe stacks' : passed")
 
+    @mock_ec2
     @mock_cloudformation 
     def test_findStack(self):
-        self.build_stack()
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
         stackList = IRH.describeStack()
         stackExpected = stackList[0]
         stackResult = IRH.findStack(stackList)
@@ -164,7 +167,9 @@ class TestInstanceRequestHandler(unittest.TestCase):
     
     @mock_cloudformation 
     def test_findUrl(self):
-        self.build_stack()
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
         stackList = IRH.describeStack()
         trialStack = IRH.findStack(stackList)
         urlExpected = "https://requesttest.trial.alfresco.com/online-trial"
@@ -174,12 +179,13 @@ class TestInstanceRequestHandler(unittest.TestCase):
 
     @mock_cloudformation 
     def test_findinstanceId(self):
-        self.build_stack()
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
         stackList = IRH.describeStack()
         trialStack = IRH.findStack(stackList)
-        instanceIdExpected = "i-011e00f871fdcac11"
         instanceIdResult = IRH.findOutputKeyValue(trialStack['Outputs'], 'InstanceId')
-        assert instanceIdExpected == instanceIdResult
+        assert instance.id == instanceIdResult
         print("Test 'Find Stack instanceId' : passed")
 
     @mock_cloudformation
