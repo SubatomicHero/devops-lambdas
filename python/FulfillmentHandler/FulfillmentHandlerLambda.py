@@ -41,7 +41,7 @@ class FulfillmentHandler:
                 raise ValueError('No valid leadId')
             obj = { 
                 'source': 'onlinetrial',
-                'lead': leadId
+                'lead': str(leadId)
             }
             return obj
         except Exception as err:
