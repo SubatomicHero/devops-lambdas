@@ -9,7 +9,7 @@ import json
 class TestAssignUserHandler(unittest.TestCase):
 
   def _get_good_message(self):
-    return json.loads("{\"message\":{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": true, \"requestId\": \"e809#14f22884e5f\"}, \"stack_id\": \"some_random_stack_id\", \"stack_url\": \"https://www.testurl.com\"}")
+    return "{\"message\":{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": true, \"requestId\": \"e809#14f22884e5f\"}, \"stack_id\": \"some_random_stack_id\", \"stack_url\": \"https://www.testurl.com\"}"
 
   def _get_bad_message(self):
     message = json.loads("{\"message\":{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": true, \"requestId\": \"e809#14f22884e5f\"}, \"stack_id\": \"some_random_stack_id\", \"stack_url\": \"https://www.testurl.com\"}")
@@ -45,14 +45,13 @@ class TestAssignUserHandler(unittest.TestCase):
     handler_without_queue = self._get_handler_without_queue()
     self.assertIsNotNone(handler_without_queue.sqs_client)
     self.assertIsNotNone(handler_without_queue.dynamo_client)
-    self.assertIsNotNone(handler_without_queue.sqs_res)
     self.assertIsNone(handler_without_queue.queue_url) # will be none until we mock sqs
     self.assertIsNotNone(handler_without_queue.marketo_client)
 
   def test_is_valid_message(self):
     print("\ntest_is_valid_message(): ")
     handler_without_queue = self._get_handler_without_queue()
-    message = self._get_good_message()
+    message = json.loads(self._get_good_message())
     # With an expected message test message is valid
     self.assertTrue(handler_without_queue.is_valid_message(message))
 
@@ -80,7 +79,7 @@ class TestAssignUserHandler(unittest.TestCase):
   def test_get_message_from_queue(self):
     # first create dummy queue and add message to it
     print("\ntest_get_message_from_queue(): ")
-    message = self._get_good_message()
+    message = json.loads(self._get_good_message())
     sqs = boto3.resource('sqs', region_name='us-east-1')
     new_queue = sqs.create_queue(QueueName='test-queue')
     queue = sqs.get_queue_by_name(QueueName='test-queue')
@@ -96,33 +95,6 @@ class TestAssignUserHandler(unittest.TestCase):
     self.assertTrue(len(messages) > 0)
     m = json.loads(messages[0]['Body'])
     self.assertEquals(message, m)
-
-  @httpretty.activate
-  def test_disable_admin_user(self):
-    print("\ntest_disable_admin_user(): ")
-    message = self._get_bad_message()
-    self._register_marketo_auth()
-    handler_without_queue = self._get_handler_without_queue()
-    response = handler_without_queue.disable_admin_user(message)
-    self.assertFalse(response)
-
-    message = self._get_good_message()
-    httpretty.register_uri(
-      httpretty.PUT,
-      "{}/alfresco/service/api/people/admin".format(message['stack_url']),
-      body="{}"
-    )
-    response = handler_without_queue.disable_admin_user(message)
-    self.assertTrue(response)
-
-    httpretty.register_uri(
-      httpretty.PUT,
-      "{}/alfresco/service/api/people/admin".format(message['stack_url']),
-      body="{}",
-      status=404
-    )
-    response = handler_without_queue.disable_admin_user(message)
-    self.assertFalse(response)
 
   @httpretty.activate
   def test_add_item_to_table(self):
@@ -161,7 +133,7 @@ class TestAssignUserHandler(unittest.TestCase):
       response = handler_without_queue.add_item_to_table(item, "assign_user_table")
       self.assertFalse(response)
 
-      item = self._get_good_message()
+      item = json.loads(self._get_good_message())
       response = handler_without_queue.add_item_to_table(item, "assign_user_table")
       self.assertTrue(response)
 
@@ -178,7 +150,7 @@ class TestAssignUserHandler(unittest.TestCase):
       "{}/alfresco/service/api/people".format(message['stack_url']),
       body=""
     )
-    message = self._get_good_message()
+    message = json.loads(self._get_good_message())
     response = handler_without_queue.assign_user_to_stack(message)
     self.assertTrue(response)
 
@@ -211,7 +183,7 @@ class TestAssignUserHandler(unittest.TestCase):
     self.assertEquals(response['attempts'], 0)
 
     # pass in a good message
-    message = self._get_good_message()
+    message = json.loads(self._get_good_message())
     response = handler_without_queue.update_marketo_lead(message, password)
     self.assertTrue(response['success'])
     self.assertEquals(response['attempts'], 1)
@@ -221,7 +193,7 @@ class TestAssignUserHandler(unittest.TestCase):
   @mock_ec2
   def test_failed_update_marketo_lead(self):
     # good message, bad response 404
-    message = self._get_good_message()
+    message = json.loads(self._get_good_message())
     self._register_marketo_auth()
 
     httpretty.register_uri(

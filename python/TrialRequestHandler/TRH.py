@@ -1,22 +1,49 @@
-from marketo import Marketo
 from datetime import datetime
 
 import json
 import os
 import boto3
 import time
+import requests
 
 dynamo_client = boto3.client('dynamodb')
 sqs_client = boto3.client('sqs')
 
 class TrialRequestHandler:
+    def __init__(self):
+        self.access_token = None
+
+    def _get_access_token(self):
+        """Authenticates with Marketo, returning the token to use for future requests"""
+        print("_get_access_token()")
+        try:
+            p = {
+                'grant_type':'client_credentials',
+                'client_id': os.environ['client_id'],
+                'client_secret': os.environ['client_secret']
+            }
+            r = requests.get("{}/identity/oauth/token".format(os.environ['api_host']), params=p)
+            data = json.loads(r.content.decode('utf-8'))
+            self.access_token = data['access_token']
+            print("Access token acquired")
+        except requests.HTTPError as err:
+            print("_authenticate(): {}".format(err))
+
     def details_marketo(self, lead_id):
         """function to obtain the details regarding the lead_id passed as a parameter"""
+        print("details_marketo(): Getting lead info for {}".format(lead_id))
         try:
-            m = Marketo(host=os.environ['api_host'], client_id=os.environ['client_id'], client_secret=os.environ['client_secret'])
-            return m.get_leads('id', lead_id)
-        except IOError as ioerr:
-            raise IOError("an error has been found with the details: {}".format(ioerr))
+            self._get_access_token()
+            p = {
+                'access_token': self.access_token,
+                'filterType': 'id',
+                'filterValues': lead_id
+            }
+            r = requests.get("{}/rest/v1/leads.json".format(os.environ['api_host']), params=p)
+            data = json.loads(r.content.decode('utf-8'))
+            return data
+        except request.HTTPError as err:
+            print("details_marketo(): {}".format(err))
         else:
             return None
 
@@ -35,7 +62,7 @@ class TrialRequestHandler:
                     'LeadId': {"N": str(lead_id)},
                     'Date': {"S": curr_date}
                 },
-                UpdateExpression="set #Fulfilled = :f, #Attempts = :a, #RequestTime = :rt, #RequestMsg = :rm",
+                UpdateExpression="set #Fulfilled=:f, #Attempts=:a, #RequestTime=:rt, #RequestMsg=:rm",
                 ExpressionAttributeNames={
                     '#Fulfilled': "Fulfilled",
                     '#Attempts': "Attempts",
@@ -46,7 +73,7 @@ class TrialRequestHandler:
                     ':f': {"S": fulfilled_test},
                     ':a': {"N": str(count_attempts)},
                     ':rt': {"S": request_time},
-                    ':rm': {"S": str(response_m)}
+                    ':rm': {"S": json.dumps(response_m)}
             })
             print("Update item succeeded")
             return True if response_m else False
@@ -76,11 +103,11 @@ def lambda_handler(event, context):
                 get_source = message['source']
                 lead_id = message['lead']
                 print("From SNS: {}".format(message))
-                if get_source is 'onlinetrials':
+                if get_source == "onlinetrial":
                     print("Processing online trial request")
                     response = handler.details_marketo(lead_id)
-                    count_attempts = 0
-                    while response is None and count_attempts < 10:
+                    count_attempts = 1
+                    while response is None and count_attempts <= 10:
                         try:
                             print("Trying again after 10 seconds")
                             count_attempts += 1
