@@ -85,7 +85,6 @@ class InstanceRequestHandler:
                             if tag['Value'] == 'false':
                                 return stack
                             break
-                    break
         return None
         
     def allocateInstance(self, instanceId):
