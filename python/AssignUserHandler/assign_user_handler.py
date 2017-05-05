@@ -6,6 +6,7 @@ import json
 import os
 import requests
 import boto3
+import base64
 
 from marketo import Marketo, MarketoAPIError
 from botocore.exceptions import ClientError
@@ -14,7 +15,6 @@ class AssignUserHandler:
   def __init__(self, api_host, client_id, client_secret, queue_url=None):
     self.sqs_client = boto3.client('sqs')
     self.dynamo_client = boto3.client('dynamodb')
-    self.sqs_res = boto3.resource('sqs')
     self.cfn_client = boto3.client('cloudformation')
     self.ec2_client = boto3.client('ec2')
     self.queue_url = queue_url
@@ -52,25 +52,15 @@ class AssignUserHandler:
         print("get_message_from_queue(): {}".format(err))
     return None
 
-  def disable_admin_user(self, message):
-    """Disables the admin user from the stack"""
-    if self.is_valid_message(message):
-      try:
-         # make a request to the url in the message to remove an admin user
-        url = "{}/alfresco/service/api/people/admin".format(message['stack_url'])
-        username = os.getenv('username')
-        headers = {
-          "Accept":"application/json",
-          "Content-Type":"application/json"
+  def _getPayloadData(self, details, pw):
+        return {
+          "userName": details['result'][0]['email'],
+          "firstName": details['result'][0]['firstName'],
+          "lastName": details['result'][0]['lastName'],
+          "email": details['result'][0]['email'],
+          "password": pw,
+          "groups": ["GROUP_ALFRESCO_ADMINISTRATORS"]
         }
-        print("disable_admin_user(): {}".format(url))
-        r = requests.put(url, data=json.dumps({"disableAccount": True}), headers=headers, auth=(username, username))
-        print("Response from request is {}".format(r.status_code))
-        r.raise_for_status()
-        return True
-      except requests.HTTPError as err:
-        print("disable_admin_user() -> error: {}".format(err))
-    return False
 
   def assign_user_to_stack(self, message):
     """Assigns a user to the stack based on the marketo details in the message"""
@@ -83,19 +73,20 @@ class AssignUserHandler:
         user_password = self.create_password()
         print("assign_user_to_stack(): {}".format(url))
         details = message['message']
-        data = {
-          "userName": details['result'][0]['email'],
-          "firstName": details['result'][0]['firstName'],
-          "lastName": details['result'][0]['lastName'],
-          "email": details['result'][0]['email'],
-          "password": user_password,
-          "groups": ["GROUP_ALFRESCO_ADMINISTRATORS"]
+        if isinstance(details, basestring):
+          details = json.loads(details)
+        print(details)
+
+        data = self._getPayloadData(details, user_password)
+        base64string = base64.encodestring("{}:{}".format(username, password)).replace("\n", "")
+        headers = {
+          "Content-Type":"application/json",
+          "Authorization": "Basic {}".format(base64string)
         }
-        headers = {"Content-Type":"application/json"}
-        r = requests.post(url, data=json.dumps(data), headers=headers, auth=(username, password))
+        r = requests.post(url, data=json.dumps(data), headers=headers)
         print("Response from request is {}".format(r.status_code))
-        r.raise_for_status()
-        return user_password
+        if r.status_code == 200 or r.status_code == 409:
+          return user_password
       except requests.HTTPError as err:
         print("assign_user_to_stack() -> error: {}".format(err))
     return None
@@ -113,13 +104,14 @@ class AssignUserHandler:
   def create_marketo_data(self, lead):
     """Parses the lead object and returns a dict that marketo expects"""
     try:
+      d = json.loads(lead['message']) if isinstance(lead, basestring) else lead['message']
       return {
-        "lastName": lead['message']['result'][0]['lastName'],
-        "firstName": lead['message']['result'][0]['firstName'],
-        "email": lead['message']['result'][0]['email'],
-        "id": lead['message']['result'][0]['id'],
+        "lastName": d['result'][0]['lastName'],
+        "firstName": d['result'][0]['firstName'],
+        "email": d['result'][0]['email'],
+        "id": d['result'][0]['id'],
         "onlineTrialHostname": lead['stack_url'],
-        "onlineTrialUsername": lead['message']['result'][0]['email'],
+        "onlineTrialUsername": d['result'][0]['email'],
         "onlineTrialStatus": 'running'
       }
     except KeyError as kerr:
@@ -165,6 +157,7 @@ class AssignUserHandler:
         data['onlineTrialPassword'] = password
         data['onlineTrialExpiry'] = self.get_expiry_from_stack(lead['stack_id'])
         if self.marketo_client:
+          self.marketo_client._authenticate()
           attempts = 1
           limit = 5
           response = self.upsert_leads(data)
@@ -187,11 +180,12 @@ class AssignUserHandler:
     """Adds an item to the designated dynamo table"""
     if (self.is_valid_message(item)):
       assign_time = lambda: int(round(time.time() * 1000))
+      m = json.loads(item['message']) if isinstance(item['message'], basestring) else item['message']
       response = self.dynamo_client.update_item(
         TableName=tablename,
         Key={
           'LeadId': {
-            "N": str(item['message']['result'][0]['id'])
+            "N": str(m['result'][0]['id'])
           },
           'Date': {
             "S": time.strftime("%d/%m/%Y")
@@ -206,7 +200,7 @@ class AssignUserHandler:
         ExpressionAttributeValues={
           ':a': {"S": str(True)},
           ':t': {"S": str(assign_time())},
-          ':u': {"S": json.dumps(item['message'])}
+          ':u': {"S": str(m)}
         }
       )
       return response and response['ResponseMetadata']['HTTPStatusCode'] == 200
@@ -224,35 +218,38 @@ class AssignUserHandler:
 
       # process each message (should only be one but just in case)
       for message in messages:
+        print(message)
         if message['MessageId'] not in m_ids:
+          print("Adding {} to read list".format(message['MessageId']))
           m_ids.append(message['MessageId'])
-          m = self.sqs_res.Message(self.queue_url, message['ReceiptHandle'])
-          message_body = json.load(m.body())
+          message_body = json.loads(message['Body'])
 
           # assign user to the stack by creating user on box
           password = self.assign_user_to_stack(message_body)
           if not password:
             print("Unable to add new user to stack")
             return self.FAILED
-
-          # disable admin user
-          if not self.disable_admin_user(message_body):
-            print("Unable to disable admin user")
-            return self.FAILED
+          print("User assigned")
 
           # update marketo lead
           result = self.update_marketo_lead(message_body, password)
           if not result['success']:
             print("Unable to upsert Marketo lead")
             return self.FAILED
+          print("Market lead updated")
 
           # if we got here, we are safe to add item to assign user table
           if not self.add_item_to_table(message_body):
             print("Unable to save item to table")
             return self.FAILED
+          print("Item added to table")
 
           # All processed OK, delete message
-          m.delete()
+          self.sqs_client.delete_message(
+            QueueUrl=os.getenv('sqs_read_url'),
+            ReceiptHandle=message['ReceiptHandle']
+          )
+          print("Message deleted")
         else:
           print("Already received this message ({}), moving on".format(message['MessageId']))
       
