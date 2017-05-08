@@ -6,14 +6,6 @@ import boto3
 import time
 import requests
 
-
-
-os.environ['sqs_url'] = ""
-os.environ['trial_request_table'] = ""
-os.environ['api_host'] = "https://453-liz-762.mktorest.com"
-os.environ['client_id'] = "35a7e1a3-5e60-40b2-bd54-674680af2adc"
-os.environ['client_secret'] = "iPPgKiB224jsa02duwPcKy9ox7078P7S"
-
 class TrialRequestHandler:
     def __init__(self, url = os.environ['sqs_url'], host = os.environ['api_host'], id = os.environ['client_id'], secret = os.environ['client_secret']):
         self.dynamo_client = boto3.client('dynamodb')
