@@ -154,7 +154,7 @@ class TestTrialLifeCycle(unittest.TestCase):
   @mock_cloudformation
   def test_stop_instance_if_expired(self):
     # tests that an instance is stopped if the expiry date is before today and the instance is running
-    today = datetime.strptime(handler.TODAY, "%d-%m-%Y")
+    today = datetime.strptime(datetime.today().strftime("%d-%m-%Y"), "%d-%m-%Y")
     yesterday = today - timedelta(days=1)
     instance = self.add_servers()
     instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date().strftime("%d-%m-%Y")))
@@ -182,7 +182,7 @@ class TestTrialLifeCycle(unittest.TestCase):
   @mock_cloudformation
   def test_terminate_stack_if_stopped(self):
     # tests that a cloudformation stack is terminated if the instance is stopped and expired
-    today = datetime.strptime(handler.TODAY, "%d-%m-%Y")
+    today = datetime.strptime(datetime.today().strftime("%d-%m-%Y"), "%d-%m-%Y")
     yesterday = today - timedelta(days=1)
     instance = self.add_servers()
     instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date().strftime("%d-%m-%Y")))
@@ -202,7 +202,7 @@ class TestTrialLifeCycle(unittest.TestCase):
   @mock_cloudformation
   @mock_ec2
   def test_run_returns_0(self):
-    today = datetime.strptime(handler.TODAY, "%d-%m-%Y")
+    today = datetime.strptime(datetime.today().strftime("%d-%m-%Y"), "%d-%m-%Y")
     yesterday = today - timedelta(days=1)
     instance = self.add_servers()
     instance.add_tag(handler.EXPIRY_KEY, str(yesterday.date().strftime("%d-%m-%Y")))
