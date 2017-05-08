@@ -12,11 +12,11 @@ class LifecycleHandler:
   def __init__(self):
     self.cfn_client = boto3.client('cloudformation')
     self.ec2_client = boto3.client('ec2')
-    self.TODAY = datetime.today().strftime("%d-%m-%Y")
     self.EXPIRY_KEY = 'ExpiryDate'
     self.STATES = ['CREATE_COMPLETE', 'UPDATE_COMPLETE']
     self.STACK_TYPE = os.environ['stack_type'] if os.environ.get('stack_type') else 'Trial'
     self.DAYS_TO_STOP = int(os.environ['days_to_stop']) if os.environ.get('days_to_stop') else 3
+    self.STAGE = os.getenv('stage', 'test')
 
   def describe_stacks(self):
     """Describes all Cloudformation stacks and returns the result"""
@@ -59,16 +59,24 @@ class LifecycleHandler:
     if stack and stack['StackStatus'] in self.STATES:
       # if one of the outputs keys is type and the value is stack_type, then we need the instance id
       is_good_stack = False
+      is_trial = False
+      is_correct_stage = False
       for output in stack['Outputs']:
-        if not is_good_stack and output['OutputKey'] == 'Type' and output['OutputValue'] == self.STACK_TYPE:
-          is_good_stack = True
-          break
+        if not is_good_stack:
+          if output['OutputKey'] == 'Type' and output['OutputValue'] == self.STACK_TYPE:
+            is_trial = True
+          if output['OutputKey'] == 'Stage' and output['OutputValue'] == self.STAGE:
+            is_correct_stage = True
+          if is_correct_stage and is_trial:
+            is_good_stack = True
+            break
 
       if is_good_stack:
         for output in stack['Outputs']:
           if output['OutputKey'] == 'InstanceId':
             print("get_instance_id(): returning {}".format(output['OutputValue']))
             return output['OutputValue']
+    print("Returning nothing, either the stack didnt have an InstanceId output or its not a trial")
     return None
 
   def update_tags(self, instance_id, tags):
@@ -120,7 +128,8 @@ class LifecycleHandler:
           if tag['Key'] == self.EXPIRY_KEY:
             expiry_date = datetime.strptime(tag['Value'], '%d-%m-%Y')
             print("Expiry date on {} is {}".format(instance_id, str(expiry_date.date().strftime("%d-%m-%Y"))))
-            t = datetime.strptime(self.TODAY, "%d-%m-%Y")
+            today = datetime.today().strftime("%d-%m-%Y")
+            t = datetime.strptime(today, "%d-%m-%Y")
             if t > expiry_date:
               print("Instance {} has passed expiry date".format(instance_id))
               status = self.describe_instances(instance_id)
@@ -156,6 +165,8 @@ class LifecycleHandler:
             else:
               print("{} has not expired yet.".format(stack['StackName']))
               break
+      else:
+        print("Stack Id {} is not a trial stack".format(stack['StackId']))
     print("No more stacks to assess")
     return 0
 
