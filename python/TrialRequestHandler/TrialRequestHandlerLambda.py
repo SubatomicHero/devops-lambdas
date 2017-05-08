@@ -10,7 +10,7 @@ import requests
 
 os.environ['sqs_url'] = ""
 os.environ['trial_request_table'] = ""
-os.environ['api_host'] = "https://453-liz-762.mktorest.com/"
+os.environ['api_host'] = "https://453-liz-762.mktorest.com"
 os.environ['client_id'] = "35a7e1a3-5e60-40b2-bd54-674680af2adc"
 os.environ['client_secret'] = "iPPgKiB224jsa02duwPcKy9ox7078P7S"
 
@@ -19,21 +19,21 @@ class TrialRequestHandler:
         self.dynamo_client = boto3.client('dynamodb')
         self.sqs_client = boto3.client('sqs')
         self.sqsUrl = url
-        self.host1 = "{}/identity/oauth/token".format(host)
-        self.host2 = "{}/rest/v1/leads.json".format(os.environ['api_host'])
+        self.host = host
         self.client_id = id
         self.client_pass = secret
 
     def _get_access_token(self, host, id, secret):
         """Authenticates with Marketo, returning the token to use for future requests"""
         try:
-            if host and id and secret :
+            if host and id and secret:
+                host = "{}/identity/oauth/token".format(host)
                 p = {
                     'grant_type':'client_credentials',
                     'client_id': id,
                     'client_secret': secret
                 }
-                r = requests.get(host, params=p)
+                r = requests.get(host, params = p)
                 data = json.loads(r.content.decode('utf-8'))
                 print("Access token acquired")
                 return data['access_token']
@@ -41,20 +41,24 @@ class TrialRequestHandler:
                 raise ValueError('Needed valid host, id and secret')
         except requests.HTTPError as err:
             print("_authenticate(): {}".format(err))
+        else:
+            return None
 
     def details_marketo(self, host, lead_id, access_token):
         """function to obtain the details regarding the lead_id passed as a parameter"""
         try:
-            if lead_id and access_token :
+            if lead_id and access_token:
+                host = "{}/rest/v1/leads.json".format(host)
                 print("details_marketo(): Getting lead info for {}".format(lead_id))
                 p = {
                     'access_token': access_token,
                     'filterType': 'id',
                     'filterValues': lead_id
                 }
-                r = requests.get(host, params=p)
+                r = requests.get(host, params =     p)
+                if r is None:
+                    raise ValueError('Cannot get the access token')
                 data = json.loads(r.content.decode('utf-8'))
-                print(data)
                 return data
             else:
                 raise ValueError('No valid lead_id')
@@ -68,24 +72,23 @@ class TrialRequestHandler:
         try:
             if lead_id and response_m and fulfilled_test and count_attempts:
                 curr_date = time.strftime("%d/%m/%Y")
-                request_time = '0'
                 dt = datetime.strptime(response_m['result'][0]['createdAt'], "%Y-%m-%dT%H:%M:%SZ")
-                request_time = int(time.mktime(dt.timetuple()) + (dt.microsecond / 1000000.0))
+                request_time = lambda: int(round(time.time() * 1000))
                 
                 response = self.dynamo_client.update_item(
-                    TableName=os.environ['trial_request_table'],
-                    Key={
+                    TableName = os.environ['trial_request_table'],
+                    Key = {
                         'LeadId': {"N": str(lead_id)},
                         'Date': {"S": curr_date}
                     },
-                    UpdateExpression="set #Fulfilled=:f, #Attempts=:a, #RequestTime=:rt, #RequestMsg=:rm",
-                    ExpressionAttributeNames={
+                    UpdateExpression = "set #Fulfilled=:f, #Attempts=:a, #RequestTime=:rt, #RequestMsg=:rm",
+                    ExpressionAttributeNames = {
                         '#Fulfilled': "Fulfilled",
                         '#Attempts': "Attempts",
                         '#RequestTime': "RequestTime",
                         '#RequestMsg': "RequestMsg"
                     },
-                    ExpressionAttributeValues={
+                    ExpressionAttributeValues = {
                         ':f': {"S": fulfilled_test},
                         ':a': {"N": str(count_attempts)},
                         ':rt': {"S": str(request_time)},
@@ -115,7 +118,7 @@ class TrialRequestHandler:
         else:
             return None
 
-    def run(self):
+    def run(self, event):
         try:
             if 'Records' in event:
                 print('Getting message from SNS')
@@ -126,32 +129,39 @@ class TrialRequestHandler:
                     print("From SNS: {}".format(message))
                     if get_source == "onlinetrial":
                         print("Processing online trial request")
-                        access_token = self._get_access_token(self.host1, self.client_id, self.client_pass)
-                        response = self.details_marketo(self.host2, lead_id, access_token)
+                        access_token = self._get_access_token(self.host, self.client_id, self.client_pass)
+                        print (access_token)
+                        if access_token is None:
+                            raise ValueError('Cannot get the access token')
                         count_attempts = 1
+                        response = self.details_marketo(self.host, lead_id, access_token)
                         while response is None and count_attempts <= 10:
                             try:
                                 print("Trying again after 10 seconds")
                                 count_attempts += 1
                                 time.sleep(10)
-                                access_token = self._get_access_token(self.host1, self.client_id, self.client_pass)
-                                response = self.details_marketo(self.host2, lead_id, access_token)
+                                access_token = self._get_access_token(self.host, self.client_id, self.client_pass)
+                                response = self.details_marketo(self.host, lead_id, access_token)
                             except IOError as ioerr:
                                 print("Marketo error: {}".format(ioerr))
                         if response:
                             print("Details received from marketo: {}".format(response))
-                        fulfilled_test = 'y' if response is not None else 'n'
-                        try:
-                            if self.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
-                                print("Record inserted to DB")
-                                if self.send_to_SQS(self.sqsUrl, response) is not None:
-                                    print("Message sent to queue")
-                            else:
-                                print("Not sending message to queue, unable to get response from Marketo")
-                        except IOError as ioerr:
-                            print("no response from dynamodb (unfulfilled)")
+                            fulfilled_test = 'y' 
+                        else:
+                            fulfilled_test = 'n'
+                        if self.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
+                            print("Record inserted to DB")
+                            send = self.send_to_SQS(self.sqsUrl, response)
+                            if send is None:
+                                raise ValueError('Message send unsuccessfull')
+                            print("Message sent to queue")
+                        else:
+                            raise ValueError("Not sending message to queue, unable to get response from Marketo")
+                        return 200
         except EOFError:
             print("lambda handler failed")
+        except Exception as err:
+            print("{}\n".format(err))
         else: 
             return None
 
@@ -160,10 +170,9 @@ TRH = TrialRequestHandler()
 # main lambda function
 def lambda_handler(event, context):
     try:
-        res = TRH.run()
+        res = TRH.run(event)
         if res == 'FAILURE':
-            print ('The run function has failed')
-            raise ValueError
+            raise ValueError('The run function has failed')
         print("All OK")
         return 200
     except Exception as err:
