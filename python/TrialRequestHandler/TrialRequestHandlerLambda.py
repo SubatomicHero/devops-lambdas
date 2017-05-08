@@ -6,14 +6,6 @@ import boto3
 import time
 import requests
 
-
-
-os.environ['sqs_url'] = ""
-os.environ['trial_request_table'] = ""
-os.environ['api_host'] = "https://453-liz-762.mktorest.com"
-os.environ['client_id'] = "35a7e1a3-5e60-40b2-bd54-674680af2adc"
-os.environ['client_secret'] = "iPPgKiB224jsa02duwPcKy9ox7078P7S"
-
 class TrialRequestHandler:
     def __init__(self, url = os.environ['sqs_url'], host = os.environ['api_host'], id = os.environ['client_id'], secret = os.environ['client_secret']):
         self.dynamo_client = boto3.client('dynamodb')
@@ -55,7 +47,7 @@ class TrialRequestHandler:
                     'filterType': 'id',
                     'filterValues': lead_id
                 }
-                r = requests.get(host, params =     p)
+                r = requests.get(host, params = p)
                 if r is None:
                     raise ValueError('Cannot get the access token')
                 data = json.loads(r.content.decode('utf-8'))
@@ -72,9 +64,7 @@ class TrialRequestHandler:
         try:
             if lead_id and response_m and fulfilled_test and count_attempts:
                 curr_date = time.strftime("%d/%m/%Y")
-                dt = datetime.strptime(response_m['result'][0]['createdAt'], "%Y-%m-%dT%H:%M:%SZ")
                 request_time = lambda: int(round(time.time() * 1000))
-                
                 response = self.dynamo_client.update_item(
                     TableName = os.environ['trial_request_table'],
                     Key = {
@@ -130,7 +120,6 @@ class TrialRequestHandler:
                     if get_source == "onlinetrial":
                         print("Processing online trial request")
                         access_token = self._get_access_token(self.host, self.client_id, self.client_pass)
-                        print (access_token)
                         if access_token is None:
                             raise ValueError('Cannot get the access token')
                         count_attempts = 1
@@ -171,7 +160,7 @@ TRH = TrialRequestHandler()
 def lambda_handler(event, context):
     try:
         res = TRH.run(event)
-        if res == 'FAILURE':
+        if res is None:
             raise ValueError('The run function has failed')
         print("All OK")
         return 200
