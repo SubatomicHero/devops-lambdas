@@ -103,8 +103,9 @@ class AssignUserHandler:
 
   def create_marketo_data(self, lead):
     """Parses the lead object and returns a dict that marketo expects"""
+    print("create_marketo_data() {}".format(lead))
     try:
-      d = json.loads(lead['message']) if isinstance(lead, basestring) else lead['message']
+      d = json.loads(lead['message']) if isinstance(lead['message'], basestring) else lead['message']
       return {
         "lastName": d['result'][0]['lastName'],
         "firstName": d['result'][0]['firstName'],
@@ -152,6 +153,7 @@ class AssignUserHandler:
   def update_marketo_lead(self, lead, password):
     """Takes the lead object and updates Marketo prompting an email"""
     if self.is_valid_message(lead):
+      print("update_marketo_lead() {}".format(lead))
       data = self.create_marketo_data(lead)
       if data is not None:
         data['onlineTrialPassword'] = password
