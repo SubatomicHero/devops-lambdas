@@ -140,6 +140,10 @@ class TrialRequestHandler:
 
                         if self.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
                             print("Record inserted to DB")
+                            # only send to the queue if the response didnt error
+                            if 'errors' in response and len(response['errors'] > 0):
+                                print("Skipping sending this message: {}".format(response))
+                                continue
                             send = self.send_to_SQS(self.sqsUrl, response)
                             if send is None:
                                 raise ValueError('Message send unsuccessful')
