@@ -7,7 +7,7 @@ import time
 import requests
 
 class TrialRequestHandler:
-    def __init__(self, url = os.environ['sqs_url'], host = os.environ['api_host'], id = os.environ['client_id'], secret = os.environ['client_secret']):
+    def __init__(self, url=os.getenv('sqs_url'), host=os.getenv('api_host'), id=os.getenv('client_id'), secret=os.getenv('client_secret')):
         self.dynamo_client = boto3.client('dynamodb')
         self.sqs_client = boto3.client('sqs')
         self.sqsUrl = url
@@ -29,8 +29,7 @@ class TrialRequestHandler:
                 data = json.loads(r.content.decode('utf-8'))
                 print("Access token acquired")
                 return data['access_token']
-            else:
-                raise ValueError('Needed valid host, id and secret')
+            raise ValueError('Needed valid host, id and secret')
         except requests.HTTPError as err:
             print("_authenticate(): {}".format(err))
         else:
@@ -47,13 +46,13 @@ class TrialRequestHandler:
                     'filterType': 'id',
                     'filterValues': lead_id
                 }
-                r = requests.get(host, params = p)
+                r = requests.get(host, params=p)
                 if r is None:
-                    raise ValueError('Cannot get the access token')
-                data = json.loads(r.content.decode('utf-8'))
-                return data
-            else:
-                raise ValueError('No valid lead_id')
+                    print("Cannot get the lead details for {}".format(lead_id))
+                    return None
+                print("Returning lead info")
+                return json.loads(r.content.decode('utf-8'))
+            raise ValueError('No valid lead_id')
         except requests.HTTPError as err:
             print("details_marketo(): {}".format(err))
         else:
@@ -86,25 +85,23 @@ class TrialRequestHandler:
                 })
                 print("Update item succeeded")
                 return True 
-            else:
-                raise ValueError('Valid lead_id, response_m, fulfilled_test and count_attempts are needed')
-        except:
+            raise ValueError('Valid lead_id, response_m, fulfilled_test and count_attempts are needed')
+        except IOError:
             raise IOError('an error has been found. Data not inserted into the table')
+        except ValueError as verr:
+            print("{}".format(verr))
         else:
             return None
 
     def send_to_SQS(self, sqsUrl, response):
         """function to send the response from marketo to the SQS"""
         try:
-            if response:
-                response = self.sqs_client.send_message(QueueUrl = sqsUrl, MessageBody = json.dumps(response))
-                return response
-            else:
-                raise ValueError('Valid message is needed')
+            return self.sqs_client.send_message(
+                QueueUrl=sqsUrl,
+                MessageBody=json.dumps(response)
+            )
         except IOError as ioerr:
             raise IOError("an error has been found. Message not been sent to the queue: {}".format(ioerr))
-        except Exception as err:
-            print("{}\n".format(err))
         else:
             return None
 
@@ -119,39 +116,40 @@ class TrialRequestHandler:
                     print("From SNS: {}".format(message))
                     if get_source == "onlinetrial":
                         print("Processing online trial request")
+
+                        # Get the access token to make a request
                         access_token = self._get_access_token(self.host, self.client_id, self.client_pass)
                         if access_token is None:
                             raise ValueError('Cannot get the access token')
+
+                        # Get the lead details from Marketo
                         count_attempts = 1
                         response = self.details_marketo(self.host, lead_id, access_token)
                         while response is None and count_attempts <= 10:
-                            try:
-                                print("Trying again after 10 seconds")
-                                count_attempts += 1
-                                time.sleep(10)
-                                access_token = self._get_access_token(self.host, self.client_id, self.client_pass)
-                                response = self.details_marketo(self.host, lead_id, access_token)
-                            except IOError as ioerr:
-                                print("Marketo error: {}".format(ioerr))
+                            print("Trying again after 10 seconds")
+                            count_attempts += 1
+                            time.sleep(10)
+                            response = self.details_marketo(self.host, lead_id, access_token)
                         if response:
                             print("Details received from marketo: {}".format(response))
-                            fulfilled_test = 'y' 
-                        else:
+
+                        fulfilled_test = 'y'
+                        if 'errors' in response and len(response['errors'] > 0):
+                            print("Error getting lead details: {}".format(response['errors']))
                             fulfilled_test = 'n'
+
                         if self.insert_into_dynamo(lead_id, response, fulfilled_test, count_attempts) is True:
                             print("Record inserted to DB")
                             send = self.send_to_SQS(self.sqsUrl, response)
                             if send is None:
-                                raise ValueError('Message send unsuccessfull')
+                                raise ValueError('Message send unsuccessful')
                             print("Message sent to queue")
                         else:
                             raise ValueError("Not sending message to queue, unable to get response from Marketo")
-                        return 200
-        except EOFError:
-            print("lambda handler failed")
-        except Exception as err:
+                return 200
+        except ValueError as err:
             print("{}\n".format(err))
-        else: 
+        else:
             return None
 
 TRH = TrialRequestHandler()
@@ -167,5 +165,4 @@ def lambda_handler(event, context):
     except Exception as err:
         print("{}\n".format(err))
     else:
-        return ('FAILURE')
-
+        return('FAILURE')
