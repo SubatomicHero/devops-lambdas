@@ -65,7 +65,7 @@ class TrialRequestHandler:
                 curr_date = time.strftime("%d/%m/%Y")
                 request_time = lambda: int(round(time.time() * 1000))
                 response = self.dynamo_client.update_item(
-                    TableName = os.environ['trial_request_table'],
+                    TableName = os.getenv('trial_request_table'),
                     Key = {
                         'LeadId': {"N": str(lead_id)},
                         'Date': {"S": curr_date}
