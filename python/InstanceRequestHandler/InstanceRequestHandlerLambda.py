@@ -76,6 +76,15 @@ class InstanceRequestHandler:
                     if output['OutputKey'] == 'InstanceId':
                         instance_id = output['OutputValue']
                 if trial and test and instance_id:
+                    # first, make sure the instance is running. It may be stopped
+                    response = self.ec2_client.describe_instance_status(
+                        InstanceIds=[instance_id]
+                    )
+                    state = response['InstanceStatuses'][0]['InstanceState']['Name']
+                    if state != "running":
+                        print("Instance {} is not running, its {}. Skipping".format(instance_id, state))
+                        continue
+                    # All good, we can allocate this instance
                     instance = self.findInstance(instance_id)
                     if instance is None:
                         raise ValueError('Every Stack must have an instance id')
