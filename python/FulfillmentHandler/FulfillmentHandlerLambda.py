@@ -36,18 +36,10 @@ class FulfillmentHandler:
             return None
     
     def createMessageObject(self, leadId):
-        try:
-            if leadId is None or not (isinstance(leadId, six.string_types)):
-                raise ValueError('No valid leadId')
-            obj = { 
-                'source': 'onlinetrial',
-                'lead': str(leadId)
-            }
-            return obj
-        except Exception as err:
-            print("{}".format(err))
-        else:
-            return None
+        return { 
+            'source': 'onlinetrial',
+            'lead': str(leadId)
+        }
 
     def publishTopicSNS(self, topicArn, obj):
         try:
@@ -71,15 +63,15 @@ class FulfillmentHandler:
             items = self.readFromTable(self.tableName)
             for item in items:
                 leadId = item['LeadId']
-                print ('The unfulfilled request with the leadId {}, is retrieved from the trial request table.'.format(leadId))
+                if leadId is None:
+                    raise ValueError('We need a lead before trying to create an object')
+                print('The unfulfilled request with the leadId {}, is retrieved from the trial request table.'.format(leadId))
                 obj = self.createMessageObject(leadId)
-                if obj is None:
-                    raise ValueError('Cannot create an object')
-                print ('The object containing the keys "source":{} and "lead":{} is created'.format(obj['source'], obj['lead']))
+                print('The object containing the keys "source":{} and "lead":{} is created'.format(obj['source'], obj['lead']))
                 response = self.publishTopicSNS(self.topicArn, obj)
                 if response is None:
                     raise ValueError('Cannot publish SNS message')
-                print ('The object is successfully published to SNS')
+                print('The object is successfully published to SNS')
             return 200
         except Exception as err:
             print("{}".format(err))
