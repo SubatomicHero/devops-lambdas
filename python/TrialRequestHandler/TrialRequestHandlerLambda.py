@@ -96,6 +96,8 @@ class TrialRequestHandler:
     def send_to_SQS(self, sqsUrl, response):
         """function to send the response from marketo to the SQS"""
         try:
+            if response is None:
+                return None
             return self.sqs_client.send_message(
                 QueueUrl=sqsUrl,
                 MessageBody=json.dumps(response)
