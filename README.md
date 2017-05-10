@@ -1,4 +1,4 @@
-PAAS-ECM AWS Lambdas
+Alfresco DevOps Lambdas
 ---
-
-Project containing all the lambdas used by DevOps for PAAS-ECM
+[![Build Status](https://travis-ci.org/Alfresco/devops-lambdas.svg?branch=develop)](https://travis-ci.org/Alfresco/devops-lambdas)
+Project containing all the lambdas used by DevOps
