@@ -26,14 +26,14 @@ class TestAssignUserHandler(unittest.TestCase):
       return AssignUserHandler(
         'https://453-liz-762.mktorest.com',
         '35a7e1a3-5e60-40b2-bd54-674680af2adc',
-        'iPPgKiB224jsa02duwPcKy9ox7078P7S'
+        'thesecret'
       )
 
     def _get_handler_with_queue(self, url):
       return AssignUserHandler(
         'https://453-liz-762.mktorest.com',
         '35a7e1a3-5e60-40b2-bd54-674680af2adc',
-        'iPPgKiB224jsa02duwPcKy9ox7078P7S',
+        'thesecret',
         queue_url=url
       )
 
