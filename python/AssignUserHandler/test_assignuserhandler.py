@@ -19,7 +19,7 @@ class TestAssignUserHandler(unittest.TestCase):
   def _register_marketo_auth(self):
     httpretty.register_uri(
       httpretty.GET,
-      "https://453-liz-762.mktorest.com/identity/oauth/token?client_secret=iPPgKiB224jsa02duwPcKy9ox7078P7S&grant_type=client_credentials&client_id=35a7e1a3-5e60-40b2-bd54-674680af2adc",
+      "https://453-liz-762.mktorest.com/identity/oauth/token?client_secret=thesecret&grant_type=client_credentials&client_id=35a7e1a3-5e60-40b2-bd54-674680af2adc",
       body="{\"access_token\":\"random_access_token\"}"
     )
 
