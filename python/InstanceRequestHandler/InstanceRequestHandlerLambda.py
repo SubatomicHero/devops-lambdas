@@ -68,6 +68,9 @@ class InstanceRequestHandler:
         for stack in stackList:
             if stack['StackStatus'] == "CREATE_COMPLETE":
                 instance_id = None
+                if 'Outputs' not in stack:
+                    print("This stack doesnt have any outputs, skipping")
+                    continue
                 for output in stack['Outputs']:
                     if output['OutputKey'] == "Type" and output['OutputValue'] == "Trial":
                         trial = True
