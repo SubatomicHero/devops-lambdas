@@ -83,9 +83,9 @@ class InstanceRequestHandler:
                     response = self.ec2_client.describe_instance_status(
                         InstanceIds=[instance_id]
                     )
-                    state = response['InstanceStatuses'][0]['InstanceState']['Name']
-                    if state != "running":
-                        print("Instance {} is not running, its {}. Skipping".format(instance_id, state))
+                    statuses = response['InstanceStatuses']
+                    if not statuses:
+                        print("Instance {} is not running. Skipping".format(instance_id))
                         continue
                     # All good, we can allocate this instance
                     instance = self.findInstance(instance_id)
