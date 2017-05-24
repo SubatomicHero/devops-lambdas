@@ -68,6 +68,9 @@ class InstanceRequestHandler:
         for stack in stackList:
             if stack['StackStatus'] == "CREATE_COMPLETE":
                 instance_id = None
+                if 'Outputs' not in stack:
+                    print("This stack doesnt have any outputs, skipping")
+                    continue
                 for output in stack['Outputs']:
                     if output['OutputKey'] == "Type" and output['OutputValue'] == "Trial":
                         trial = True
@@ -80,9 +83,9 @@ class InstanceRequestHandler:
                     response = self.ec2_client.describe_instance_status(
                         InstanceIds=[instance_id]
                     )
-                    state = response['InstanceStatuses'][0]['InstanceState']['Name']
-                    if state != "running":
-                        print("Instance {} is not running, its {}. Skipping".format(instance_id, state))
+                    statuses = response['InstanceStatuses']
+                    if not statuses:
+                        print("Instance {} is not running. Skipping".format(instance_id))
                         continue
                     # All good, we can allocate this instance
                     instance = self.findInstance(instance_id)

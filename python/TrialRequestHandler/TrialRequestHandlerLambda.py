@@ -80,7 +80,7 @@ class TrialRequestHandler:
                     ExpressionAttributeValues = {
                         ':f': {"S": fulfilled_test},
                         ':a': {"N": str(count_attempts)},
-                        ':rt': {"S": str(request_time)},
+                        ':rt': {"S": str(request_time())},
                         ':rm': {"S": json.dumps(response_m)}
                 })
                 print("Update item succeeded")
