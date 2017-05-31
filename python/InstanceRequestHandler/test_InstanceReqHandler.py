@@ -1,6 +1,7 @@
 """
 Test case for Instance Request Handler
 """
+import os
 import json
 import unittest
 import boto
@@ -9,6 +10,7 @@ import boto3
 from moto import mock_sqs, mock_ec2, mock_cloudformation
 from InstanceRequestHandlerLambda import InstanceRequestHandler
 
+os.environ['stage'] = 'test'
 IRH = InstanceRequestHandler()
 ORIGINAL_MESSAGE = {
     'result': [
@@ -37,6 +39,25 @@ class TestInstanceRequestHandler(unittest.TestCase):
         self.assertIsNotNone(IRH.ec2_client)
         self.assertIsNotNone(IRH.sqs_client)
         self.assertIsNotNone(IRH.sqs_res)
+
+    @mock_cloudformation
+    @mock_ec2
+    def test_get_test_stacks(self):
+        """
+        Tests getting stacks by the stage key works as expected
+        """
+        # The stage env var is set as test above
+        instance = self.add_servers()
+        instance.add_tag('Allocated', 'false')
+        self.build_stack(instance.id)
+        stacks = IRH.describe_stack()
+        assert stacks
+
+        os.environ['stage'] = 'prod'
+        stacks = IRH.describe_stack()
+        assert not stacks
+        os.environ['stage'] = 'test'
+        print "--Test get test stacks passed--"
 
     @mock_cloudformation
     @mock_ec2
