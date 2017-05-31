@@ -46,18 +46,33 @@ class InstanceRequestHandler(object):
     def describe_stack(self):
         """
         Describes and returns all the current cfn stacks
+        That we want
         """
+        trial = False
+        test = False
         response = self.cloud_client.describe_stacks()
         if 'Stacks' in response:
-            return response['Stacks']
+            stacks = []
+            stage = os.environ['stage']
+            for stack in response['Stacks']:
+                if 'Outputs' not in stack:
+                    continue
+                for output in stack['Outputs']:
+                    key = output['OutputKey']
+                    value = output['OutputValue']
+                    if key == "Type" and value == "Trial":
+                        trial = True
+                    if key == "Stage" and value == stage:
+                        test = True
+                if trial and test:
+                    stacks.append(stack)
+            return stacks
         return None
 
     def find_stack(self, stack_list):
         """
         Finds an unallocated stack and returns it
         """
-        trial = False
-        test = False
         shuffle(stack_list)
         for stack in stack_list:
             if stack['StackStatus'] == "CREATE_COMPLETE":
@@ -68,13 +83,10 @@ class InstanceRequestHandler(object):
                 for output in stack['Outputs']:
                     key = output['OutputKey']
                     value = output['OutputValue']
-                    if key == "Type" and value == "Trial":
-                        trial = True
-                    if key == "Stage" and value == os.getenv('stage', 'test'):
-                        test = True
                     if key == 'InstanceId':
                         instance_id = value
-                if trial and test and instance_id:
+                        break
+                if instance_id:
                     # first, make sure the instance is running. It may be stopped
                     response = self.ec2_client.describe_instance_status(
                         InstanceIds=[instance_id]
