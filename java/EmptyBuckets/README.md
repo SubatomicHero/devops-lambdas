@@ -1,7 +1,7 @@
-EmptyBuckets Java Lambda for PAAS-ECM
+EmptyBuckets Java Lambda
 ---
 
-This Lambda is triggered by the CloudFormation Template when DataStack is deleted, in order to delete the bucket containing the Alfresco content data (alf-data).
+This Lambda is triggered by a CloudFormation Template when the stack is deleted, in order to delete the bucket containing any data.
 
 When the request type sent by the CFN template is different from "Delete" or when the bucket does not exist the Lambda function will exit sending a SUCCESS message to CFN template.
 In case of AWS exception it will instead send a FAILURE message back to the template.

@@ -53,7 +53,7 @@ class TestPlacebo(unittest.TestCase):
     @Mock
     def test_describe_tags(self):
         self.pill.playback()
-        result = IRH.findInstance()
+        result = IRH.find_instance()
         self.assertEqual(result['Addresses']['Tags']['Key'],"Stage")
         self.assertEqual(result['Addresses']['Tags']['Key'],"Type")
 
@@ -69,7 +69,7 @@ class TestPlacebo(unittest.TestCase):
         self.pill.playback()
         original_message = {'result': [{'updatedAt': '2015-08-10T06:53:11Z', 'lastName': 'Taylor', 'firstName': 'Dan', 'createdAt': '2014-09-18T20:56:57Z', 'email': 'daniel.taylor@alfresco.com', 'id': 1558511}], 'success': True, 'requestId': 'e809#14f22884e5f'}
         message = json.dumps(original_message)
-        result = IRH.sendMessage("2", "url", message )
+        result = IRH.send_message("2", "url", message )
         self.assertEqual(result['Addresses']['ResponseMetadata']['RequestId'],"e62187a6-64ec-508a-a659-d6f238075c90")
 
 if __name__ == '__main__':
