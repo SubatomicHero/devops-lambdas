@@ -10,14 +10,13 @@ class LifecycleHandler(object):
       - After 14 days, extend the expiry date by n days and stop the instance.
       - If the expiry date has passed and the instance has stopped, delete the cloudformation stack.
     """
-    def __init__(self):
+    def __init__(self, stack_type, days_to_stop):
         self.cfn_client = boto3.client('cloudformation')
         self.ec2_client = boto3.client('ec2')
         self.expiry_key = 'ExpiryDate'
         self.states = ['CREATE_COMPLETE', 'UPDATE_COMPLETE']
-        self.stack_type = os.getenv('stack_type', 'Trial')
-        self.days_to_stop = int(os.getenv('days_to_stop', 3))
-        self.stage = os.getenv('stage', 'test')
+        self.stack_type = stack_type
+        self.days_to_stop = int(days_to_stop)
 
     def describe_stacks(self):
         """
@@ -33,15 +32,17 @@ class LifecycleHandler(object):
                 is_correct_stage = False
                 if 'Outputs' in stack:
                     for output in stack['Outputs']:
-                        if output['OutputKey'] == 'Type' and output['OutputValue'] == self.stack_type:
+                        key = output['OutputKey']
+                        value = output['OutputValue']
+                        if key == 'Type' and value == self.stack_type:
                             is_trial = True
-                        if output['OutputKey'] == 'Stage' and output['OutputValue'] == self.stage:
+                        if key == 'Stage' and value == os.environ['stage']:
                             is_correct_stage = True
-                        if is_correct_stage and is_trial:
-                            response['Stacks'].append(stack)
-                            break
+                    if is_correct_stage and is_trial:
+                        response['Stacks'].append(stack)
+                        break
             return response
-        except Exception as err:
+        except KeyError as err:
             print("{}".format(err))
             return None
 
@@ -74,7 +75,7 @@ class LifecycleHandler(object):
 
     def get_instance_id(self, stack):
         """returns the instance id from a list of outputs, if present"""
-        if stack and stack['StackStatus'] in self.states:
+        if stack and 'StackStatus' in stack and stack['StackStatus'] in self.states:
             # if one of the outputs keys is type and the value is stack_type, get the instance id
             print("get_instance_id(): {}".format(stack['StackName']))
             if 'Outputs' in stack:
@@ -179,7 +180,10 @@ class LifecycleHandler(object):
         print("No more stacks to assess")
         return 0
 
-CLS = LifecycleHandler()
+CLS = LifecycleHandler(
+    os.environ['stack_type'],
+    os.environ['days_to_stop']
+)
 
 def handler(event, context):
     """Lambda Handler"""
