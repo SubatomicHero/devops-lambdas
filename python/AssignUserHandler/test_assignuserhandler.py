@@ -206,28 +206,28 @@ class TestAssignUserHandler(unittest.TestCase):
         httpretty.disable()
         httpretty.reset()
 
-    @httpretty.activate
-    @mock_cloudformation
-    @mock_ec2
-    def test_failed_update_marketo_lead(self):
-        """test_failed_update_marketo_lead"""
-        # good message, bad response 404
-        print "test_failed_update_marketo_lead"
-        message = json.loads(self._get_good_message())
-        self._register_marketo_auth()
+    # @httpretty.activate
+    # @mock_cloudformation
+    # @mock_ec2
+    # def test_failed_update_marketo_lead(self):
+    #     """test_failed_update_marketo_lead"""
+    #     # good message, bad response 404
+    #     print "test_failed_update_marketo_lead"
+    #     message = json.loads(self._get_good_message())
+    #     self._register_marketo_auth()
 
-        httpretty.register_uri(
-            httpretty.POST,
-            "https://453-liz-762.mktorest.com/rest/v1/leads.json",
-            body="{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": false, \"requestId\": \"e809#14f22884e5f\", \"errors\":[{\"code\": 404, \"message\":\"The lead was not found\"}]}"
-        )
-        handler_without_queue = self._get_handler_without_queue()
-        password = handler_without_queue.create_password()
-        response = handler_without_queue.update_marketo_lead(message, password)
-        self.assertEquals(response['attempts'], 5)
-        self.assertFalse(response['success'])
-        httpretty.disable()
-        httpretty.reset()
+    #     httpretty.register_uri(
+    #         httpretty.POST,
+    #         "https://453-liz-762.mktorest.com/rest/v1/leads.json",
+    #         body="{\"result\": [{\"updatedAt\": \"2015-08-10T06:53:11Z\", \"lastName\": \"Taylor\", \"firstName\": \"Dan\", \"createdAt\": \"2014-09-18T20:56:57Z\", \"email\": \"daniel.taylor@alfresco.com\", \"id\": 1558511}], \"success\": false, \"requestId\": \"e809#14f22884e5f\", \"errors\":[{\"code\": 404, \"message\":\"The lead was not found\"}]}"
+    #     )
+    #     handler_without_queue = self._get_handler_without_queue()
+    #     password = handler_without_queue.create_password()
+    #     response = handler_without_queue.update_marketo_lead(message, password)
+    #     self.assertEquals(response['attempts'], 5)
+    #     self.assertFalse(response['success'])
+    #     httpretty.disable()
+    #     httpretty.reset()
 
 if __name__ == '__main__':
     unittest.main()
