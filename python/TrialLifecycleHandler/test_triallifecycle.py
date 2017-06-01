@@ -66,7 +66,17 @@ class TestTrialLifeCycle(unittest.TestCase):
                 "Url": {
                     "Value":"https://e6br9y.trial.alfresco.com"
                 }
-            }
+            },
+            "Tags": [
+                {
+                    'Value': 'Trial',
+                    'Key': 'Type'
+                },
+                {
+                    'Value': 'test',
+                    'Key': 'Stage'
+                }
+            ]
         }
         template = json.dumps(dummy_template)
         return HANDLER.cfn_client.create_stack(
