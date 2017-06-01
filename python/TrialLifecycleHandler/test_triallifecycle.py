@@ -1,217 +1,256 @@
+import unittest
+import os
+import boto
+
+os.environ['days_to_stop'] = '3'
+os.environ['stack_type'] = 'Trial'
+os.environ['stage'] = 'test'
+import json
+
+from datetime import datetime, timedelta
 from triallifecycle import LifecycleHandler
 from moto import mock_cloudformation, mock_ec2
-import unittest
-from datetime import datetime, timedelta
-import json
-import boto
 from botocore.exceptions import ClientError
 from nose.tools import assert_raises
 
-handler = LifecycleHandler()
+HANDLER = LifecycleHandler(
+    os.environ['stack_type'],
+    os.environ['days_to_stop'],
+)
 
 class TestTrialLifeCycle(unittest.TestCase):
-      def test_instance(self):
-          self.assertIsNotNone(handler.cfn_client)
-          self.assertIsNotNone(handler.ec2_client)
-          self.assertEqual(handler.expiry_key, 'ExpiryDate')
-          self.assertEqual(len(handler.states), 2)
+    """TestTrialLifecycle"""
+    def test_instance(self):
+        """test_instance"""
+        self.assertIsNotNone(HANDLER.cfn_client)
+        self.assertIsNotNone(HANDLER.ec2_client)
+        self.assertEqual(HANDLER.expiry_key, 'ExpiryDate')
+        self.assertEqual(len(HANDLER.states), 2)
 
-      @mock_cloudformation
-      def build_stack(self, instance_id="i-0e0f25febd2bb4f43"):
+    @mock_cloudformation
+    def build_stack(self, instance_id="i-0e0f25febd2bb4f43"):
+        """build_stack"""
         # Create a stack first so we can play with it
         dummy_template = {
-          "AWSTemplateFormatVersion": "2010-09-09",
-          "Description": "Stack 1",
-          "Resources": {
-            "EC2Instance1": {
-              "Type": "AWS::EC2::Instance",
-              "Properties": {
-                "ImageId": "ami-d3adb33f",
-                "KeyName": "dummy",
-                "InstanceType": "t2.micro",
-                "Tags": [
-                  {
-                    "Key": "ExpiryDate",
-                    "Value": "04-05-2017"
-                  }
-                ]
-              }
-            }
-          },
-          "Outputs": {
-            "Type": {
-              "Value": "Trial"
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "Stack 1",
+            "Resources": {
+                "EC2Instance1": {
+                    "Type": "AWS::EC2::Instance",
+                    "Properties": {
+                        "ImageId": "ami-d3adb33f",
+                        "KeyName": "dummy",
+                        "InstanceType": "t2.micro",
+                        "Tags": [
+                            {
+                                "Key": "ExpiryDate",
+                                "Value": "04-05-2017"
+                            }
+                        ]
+                    }
+                }
             },
-            "InstanceId": {
-              "Value": instance_id
+            "Outputs": {
+                "Type": {
+                    "Value": "Trial"
+                },
+                "InstanceId": {
+                    "Value": instance_id
+                },
+                "PublicIp": {
+                    "Value": "54.210.56.83"
+                },
+                "Stage": {
+                    "Value": "test"
+                },
+                "Url": {
+                    "Value":"https://e6br9y.trial.alfresco.com"
+                }
             },
-            "PublicIp": {
-              "Value": "54.210.56.83"
-            },
-            "Stage": {
-              "Value": "test"
-            },
-            "Url": {
-              "Value":"https://e6br9y.trial.alfresco.com"
-            }
-          }
+            "Tags": [
+                {
+                    'Value': 'Trial',
+                    'Key': 'Type'
+                },
+                {
+                    'Value': 'test',
+                    'Key': 'Stage'
+                }
+            ]
         }
         template = json.dumps(dummy_template)
-        return handler.cfn_client.create_stack(
-          StackName="test_stack",
-          TemplateBody=template
+        return HANDLER.cfn_client.create_stack(
+            StackName="test_stack",
+            TemplateBody=template
         )
 
-      @mock_cloudformation
-      def test_describe_stacks(self):
+    @mock_cloudformation
+    def test_describe_stacks(self):
+        """test_describe_stacks"""
         self.build_stack()
-        stacks = handler.describe_stacks()
-        
+        stacks = HANDLER.describe_stacks()
         self.assertIsNotNone(stacks)
         self.assertEqual(len(stacks['Stacks']), 1)
 
-      @mock_ec2
-      def add_servers(self, ami_id="ami-0b71c21d"):
+        os.environ['stage'] = 'prod'
+        stacks = HANDLER.describe_stacks()
+        self.assertEqual(len(stacks['Stacks']), 0)
+
+        os.environ['stage'] = 'test'
+        stacks = HANDLER.describe_stacks()
+        self.assertIsNotNone(stacks)
+        self.assertEqual(len(stacks['Stacks']), 1)
+
+    @mock_ec2
+    def add_servers(self, ami_id="ami-0b71c21d"):
+        """add_servers"""
         conn = boto.connect_ec2('the_key', 'the_secret')
         return conn.run_instances(ami_id).instances[0]
 
-      @mock_ec2
-      def test_describe_tags(self):
+    @mock_ec2
+    def test_describe_tags(self):
+        """test_describe_tags"""
         # test that if none is passed, we receive none
-        instance_id = ""
-        tags = handler.describe_tags(instance_id)
+        instance_id = None
+        tags = HANDLER.describe_tags(instance_id)
         self.assertIsNone(tags)
 
         # Test that with a valid instance id, we get the tags we expect
         instance = self.add_servers()
-        instance.add_tag(handler.expiry_key, "05-04-2017")
-        response = handler.describe_tags(instance.id)
+        instance.add_tag(HANDLER.expiry_key, "05-04-2017")
+        response = HANDLER.describe_tags(instance.id)
         self.assertEquals(response['ResponseMetadata']['HTTPStatusCode'], 200)
         self.assertEquals(len(response['Tags']), 1)
-        self.assertEquals(response['Tags'][0]['Key'], handler.expiry_key)
+        self.assertEquals(response['Tags'][0]['Key'], HANDLER.expiry_key)
         self.assertEquals(response['Tags'][0]['Value'], "05-04-2017")
 
-      @mock_ec2
-      def test_describe_instances(self):
+    @mock_ec2
+    def test_describe_instances(self):
+        """test_describe_instances"""
         instance_id = ""
-        response = handler.describe_instances(instance_id)
+        response = HANDLER.describe_instances(instance_id)
         self.assertIsNone(response)
 
         instance = self.add_servers()
-        response = handler.describe_instances(instance.id)
+        response = HANDLER.describe_instances(instance.id)
         obj = response['Reservations'][0]['Instances'][0]
         self.assertIsNotNone(response)
         self.assertIsNotNone(obj)
         self.assertEquals(obj['State']['Name'], 'running')
 
-      @mock_ec2
-      def test_update_tags(self):
+    @mock_ec2
+    def test_update_tags(self):
+        """test_update_tags"""
         instance_id = ""
-        response = handler.update_tags(instance_id, [])
+        response = HANDLER.update_tags(instance_id, [])
         self.assertIsNone(response)
         tags = [{'Key':'blah', 'Value':'blah'}]
-        response = handler.update_tags(instance_id, tags)
+        response = HANDLER.update_tags(instance_id, tags)
         self.assertIsNone(response)
 
         instance = self.add_servers()
-        instance.add_tag(handler.expiry_key, "05-04-2017")
-        response = handler.describe_tags(instance.id)
+        instance.add_tag(HANDLER.expiry_key, "05-04-2017")
+        response = HANDLER.describe_tags(instance.id)
         self.assertEquals(response['Tags'][0]['Value'], "05-04-2017")
-        handler.update_tags(instance.id, [
-          {
-            'Key': handler.expiry_key,
-            'Value': "08-04-2017"
-          }
+        HANDLER.update_tags(instance.id, [
+            {
+                'Key': HANDLER.expiry_key,
+                'Value': "08-04-2017"
+            }
         ])
-        response = handler.describe_tags(instance.id)
+        response = HANDLER.describe_tags(instance.id)
         self.assertEquals(response['Tags'][0]['Value'], "08-04-2017")
 
-      @mock_cloudformation
-      def test_get_instance_id(self):
+    @mock_cloudformation
+    def test_get_instance_id(self):
+        """test_get_instance_id"""
         stack = {}
-        id = handler.get_instance_id(stack)
-        self.assertIsNone(id)
+        uid = HANDLER.get_instance_id(stack)
+        self.assertIsNone(uid)
 
         instance = self.add_servers()
         self.build_stack(instance.id)
-        response = handler.describe_stacks()
-        print(response)
+        response = HANDLER.describe_stacks()
         stack = response['Stacks'][0]
-        id = handler.get_instance_id(stack)
-        self.assertEquals(id, instance.id)
+        uid = HANDLER.get_instance_id(stack)
+        self.assertEquals(uid, instance.id)
 
-      @mock_ec2
-      def test_stop_instance(self):
+    @mock_ec2
+    def test_stop_instance(self):
+        """test_stop_instance"""
         instance_id = ""
-        response = handler.stop_instance(instance_id)
+        response = HANDLER.stop_instance(instance_id)
         self.assertIsNone(response)
 
         instance = self.add_servers()
-        handler.stop_instance(instance.id)
-        response = handler.describe_instances(instance.id)
+        HANDLER.stop_instance(instance.id)
+        response = HANDLER.describe_instances(instance.id)
         self.assertEquals(response['Reservations'][0]['Instances'][0]['State']['Name'], 'stopped')
 
-      @mock_ec2
-      @mock_cloudformation
-      def test_stop_instance_if_expired(self):
-        # tests that an instance is stopped if the expiry date is before today and the instance is running
+    @mock_ec2
+    @mock_cloudformation
+    def test_stop_instance_if_expired(self):
+        """test_stop_instance_if_expired"""
+        # tests that an instance is stopped if the expiry date
+        #  is before today and the instance is running
         today = datetime.strptime(datetime.today().strftime("%d-%m-%Y"), "%d-%m-%Y")
         yesterday = today - timedelta(days=1)
         instance = self.add_servers()
-        instance.add_tag(handler.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
-        response = handler.describe_tags(instance.id)
+        instance.add_tag(HANDLER.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
+        response = HANDLER.describe_tags(instance.id)
         self.assertEquals(response['Tags'][0]['Value'], str(yesterday.date().strftime("%d-%m-%Y")))
         self.assertTrue(today > yesterday)
-        response = handler.describe_instances(instance.id)
+        response = HANDLER.describe_instances(instance.id)
         obj = response['Reservations'][0]['Instances'][0]
         self.assertEquals(obj['State']['Name'], 'running')
 
         # The instance is running and expired yesterday
         self.build_stack(instance.id)
-        handler.run()
+        HANDLER.run()
 
         # instance should have new expiry date and be stopped
-        response = handler.describe_instances(instance.id)
+        response = HANDLER.describe_instances(instance.id)
         obj = response['Reservations'][0]['Instances'][0]
         self.assertEquals(obj['State']['Name'], 'stopped')
-        new_expiry_date = yesterday + timedelta(days=handler.days_to_stop)
+        ned = yesterday + timedelta(days=HANDLER.days_to_stop)
 
-        response = handler.describe_tags(instance.id)
-        self.assertEquals(response['Tags'][0]['Value'], str(new_expiry_date.date().strftime("%d-%m-%Y")))
+        response = HANDLER.describe_tags(instance.id)
+        self.assertEquals(response['Tags'][0]['Value'], str(ned.date().strftime("%d-%m-%Y")))
 
-      @mock_ec2
-      @mock_cloudformation
-      def test_terminate_stack_if_stopped(self):
+    @mock_ec2
+    @mock_cloudformation
+    def test_terminate_stack_if_stopped(self):
+        """test_terminate_stack_if_stopped"""
         # tests that a cloudformation stack is terminated if the instance is stopped and expired
         today = datetime.strptime(datetime.today().strftime("%d-%m-%Y"), "%d-%m-%Y")
         yesterday = today - timedelta(days=1)
         instance = self.add_servers()
-        instance.add_tag(handler.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
+        instance.add_tag(HANDLER.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
         self.build_stack(instance.id)
-        
         # lets stop the instance, as per the logic
-        handler.stop_instance(instance.id)
+        HANDLER.stop_instance(instance.id)
 
         # run the handler, the stack should be terminated. Describing would return an ClientError
         # as it no longer exists
-        handler.run()
+        HANDLER.run()
         with assert_raises(ClientError):
-          response = handler.cfn_client.describe_stacks(
-            StackName='test_stack'
-          )
-    
-      @mock_cloudformation
-      @mock_ec2
-      def test_run_returns_0(self):
+            HANDLER.cfn_client.describe_stacks(
+                StackName='test_stack'
+            )
+
+    @mock_cloudformation
+    @mock_ec2
+    def test_run_returns_0(self):
+        """test_run_returns_0"""
         today = datetime.strptime(datetime.today().strftime("%d-%m-%Y"), "%d-%m-%Y")
         yesterday = today - timedelta(days=1)
         instance = self.add_servers()
-        instance.add_tag(handler.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
+        instance.add_tag(HANDLER.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
         self.build_stack(instance.id)
-        code = handler.run()
+        code = HANDLER.run()
 
         self.assertEquals(code, 0)
 
 if __name__ == '__main__':
-  unittest.main()
+    unittest.main()
   
