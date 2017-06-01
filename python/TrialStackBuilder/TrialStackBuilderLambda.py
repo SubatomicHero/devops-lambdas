@@ -1,10 +1,15 @@
 import boto3
 import json
 import six
-import uuid, os
+import uuid
+import os
 
-class TrialStackBuilder:
-    def __init__(self, bucketname=os.getenv('template_bucket_name', 'online-trial-control-tes-onlinetrialstacktemplate-gt9u28jnoe48'), stage=os.getenv('stage', 'test')):
+class TrialStackBuilder(object):
+    """
+    TrialStackBuilder checks on a schedule how many stacks to build
+    to keep the pool maintained
+    """
+    def __init__(self, bucketname=os.getenv('template_bucket_name'), stage=os.getenv('stage')):
         try:
             self.cloud_client = boto3.client('cloudformation')
             self.ec2_client = boto3.client('ec2')
@@ -13,25 +18,37 @@ class TrialStackBuilder:
             self.stage = stage
             self.template = None
         except Exception as err:
-            message = "{0}\n".format(err)
-            print(message)
+            print "{0}\n".format(err)
             raise err
 
-    def listStack(self):
+    def listStack(self, token=None):
         try:
-            response = self.cloud_client.describe_stacks()
-            if response['Stacks'] is None:
-                raise ValueError('There is no stack')
-            
-            # only return stacks that are trial stacks, not other stacks in the list
-            stacks = []
-            for stack in response['Stacks']:
-                if stack['StackName'].startswith("trial-{}".format(self.stage)):
-                    stacks.append(stack)
-            print("Returning {} stack(s)".format(len(stacks)))
-            return stacks
+            if token:
+                response = self.cloud_client.describe_stacks(
+                    NextToken=token
+                )
+            else:
+                response = self.cloud_client.describe_stacks()
+            if 'Stacks' in response:
+                stacks = []
+                for stack in response['Stacks']:
+                    correct_stage = False
+                    correct_type = False
+                    if 'Outputs' in stack:
+                        for output in stack['Outputs']:
+                            key = output['OutputKey']
+                            value = output['OutputValue']
+                            if key == 'Type' and value == 'Trial':
+                                correct_type = True
+                            if key == 'Stage' and value == os.environ['stage']:
+                                correct_stage = True
+                        if correct_type and correct_stage:
+                            stacks.append(stack)
+                if 'NextToken' in response:
+                    stacks = stacks + self.listStack(response['NextToken'])
+                return stacks
         except Exception as err:
-            print("{}\n".format(err))
+            print "{}\n".format(err)
         else:
             return None
 
@@ -55,9 +72,9 @@ class TrialStackBuilder:
                         raise ValueError('Cannot find any unassigned instance')
                     elif unassigned == True:   
                         count += 1 
-                        print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
-                    else:
-                        print("The stack {}  is a not an unassigned stack.".format(stack['StackName']))
+                        # print("The stack {} exists which is a unassigned stack.".format(stack['StackName']))
+                    # else:
+                    #     print("The stack {}  is a not an unassigned stack.".format(stack['StackName']))
             return count
         except Exception as err:
             print("{}\n".format(err))
@@ -203,7 +220,7 @@ class TrialStackBuilder:
                         stack_id = self.createStack()
                         if stack_id is None:
                             raise ValueError('Cannot create the stack')
-                        print("The stack is created and its StackId is {} ".format(stack_id))
+                        # print("The stack is created and its StackId is {} ".format(stack_id))
                     return 200
                 print ('There is already {} unassigned stack(s)'.format(stack_count))
                 return 200
@@ -212,7 +229,7 @@ class TrialStackBuilder:
                 if response == None:
                     raise ValueError('Cannot create the stack')
                 else: 
-                    print("The stack is created and its StackId is {} ".format(response))
+                    # print("The stack is created and its StackId is {} ".format(response))
                     return 200
         except Exception as err:
             print("{}\n".format(err))

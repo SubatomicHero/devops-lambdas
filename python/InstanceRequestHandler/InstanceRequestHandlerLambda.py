@@ -43,12 +43,17 @@ class InstanceRequestHandler(object):
             )
         raise ValueError('Valid stack ID, stack url and message are needed')
 
-    def describe_stack(self):
+    def describe_stack(self, token=None):
         """
         Describes and returns all the current cfn stacks
         That we want
         """
-        response = self.cloud_client.describe_stacks()
+        if token:
+            response = self.cloud_client.describe_stacks(
+                NextToken=token
+            )
+        else:
+            response = self.cloud_client.describe_stacks()
         if 'Stacks' in response:
             stacks = []
             for stack in response['Stacks']:
@@ -64,6 +69,8 @@ class InstanceRequestHandler(object):
                             correct_stage = True
                     if correct_type and correct_stage:
                         stacks.append(stack)
+            if 'NextToken' in response:
+                stacks = stacks + self.describe_stack(response['NextToken'])
             return stacks
         return None
 
