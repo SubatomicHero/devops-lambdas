@@ -90,16 +90,16 @@ class TestTrialLifeCycle(unittest.TestCase):
         self.build_stack()
         stacks = HANDLER.describe_stacks()
         self.assertIsNotNone(stacks)
-        self.assertEqual(len(stacks['Stacks']), 1)
+        self.assertEqual(len(stacks), 1)
 
         os.environ['stage'] = 'prod'
         stacks = HANDLER.describe_stacks()
-        self.assertEqual(len(stacks['Stacks']), 0)
+        self.assertEqual(len(stacks), 0)
 
         os.environ['stage'] = 'test'
         stacks = HANDLER.describe_stacks()
         self.assertIsNotNone(stacks)
-        self.assertEqual(len(stacks['Stacks']), 1)
+        self.assertEqual(len(stacks), 1)
 
     @mock_ec2
     def add_servers(self, ami_id="ami-0b71c21d"):
@@ -170,8 +170,8 @@ class TestTrialLifeCycle(unittest.TestCase):
 
         instance = self.add_servers()
         self.build_stack(instance.id)
-        response = HANDLER.describe_stacks()
-        stack = response['Stacks'][0]
+        stacks = HANDLER.describe_stacks()
+        stack = stacks[0]
         uid = HANDLER.get_instance_id(stack)
         self.assertEquals(uid, instance.id)
 

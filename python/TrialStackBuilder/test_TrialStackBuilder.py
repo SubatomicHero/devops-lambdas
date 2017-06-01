@@ -4,6 +4,8 @@ from botocore.exceptions import ClientError
 from nose.tools import assert_raises
 from TrialStackBuilderLambda import TrialStackBuilder
 
+os.environ['stage'] = 'test'
+
 # parameters
 event = {
   "account": "123456789012",
@@ -146,7 +148,7 @@ class TestTrialStackBuilder(unittest.TestCase):
         instanceIdResult = TSB.findInstanceId(stacks[0]['Outputs'])
         instanceIdExpected = "i-0e0f25febd2bb4f43"
         assert instanceIdExpected == instanceIdResult
-        print("Test 'Find Stack instanceId' : passed")
+        print "Test 'Find Stack instanceId' : passed"
     
     @mock_cloudformation
     @mock_ec2
