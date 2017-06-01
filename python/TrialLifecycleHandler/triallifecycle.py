@@ -18,16 +18,21 @@ class LifecycleHandler(object):
         self.stack_type = stack_type
         self.days_to_stop = int(days_to_stop)
 
-    def describe_stacks(self):
+    def describe_stacks(self, token=None):
         """
         Describes all Cloudformation stacks and returns the result.
         Only returns stacks we are looking for
         """
-        try:
-            print('describe_stacks()')
-            response = {}
-            response['Stacks'] = []
-            for stack in self.cfn_client.describe_stacks()['Stacks']:
+        print('describe_stacks()')
+        if token:
+            response = self.cfn_client.describe_stacks(
+                NextToken=token
+            )
+        else:
+            response = self.cfn_client.describe_stacks()
+        stacks = []
+        if 'Stacks' in response:
+            for stack in response['Stacks']:
                 correct_stage = False
                 correct_type = False
                 if 'Outputs' in stack:
@@ -39,11 +44,11 @@ class LifecycleHandler(object):
                         if key == 'Stage' and value == os.environ['stage']:
                             correct_stage = True
                     if correct_type and correct_stage:
-                        response['Stacks'].append(stack)
-            return response
-        except KeyError as err:
-            print("{}".format(err))
-            return None
+                        stacks.append(stack)
+            if 'NextToken' in response:
+                stacks = stacks + self.describe_stacks(response['NextToken'])
+            return stacks
+        return None
 
     def describe_tags(self, instance_id):
         """Describes all the tags attached to an instance"""
@@ -117,11 +122,11 @@ class LifecycleHandler(object):
     def run(self):
         """ Runs the handler, based on the rules"""
         print('Running LifecycleHandler...')
-        response = self.describe_stacks()
-        if response is None:
+        stacks = self.describe_stacks()
+        if stacks is None:
             raise ValueError('Unable to retrieve list of cloudformation stacks')
 
-        for stack in response['Stacks']:
+        for stack in stacks:
             instance_id = self.get_instance_id(stack)
             if instance_id:
                 print("We have an instance {}".format(instance_id))
