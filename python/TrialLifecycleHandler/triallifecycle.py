@@ -28,19 +28,18 @@ class LifecycleHandler(object):
             response = {}
             response['Stacks'] = []
             for stack in self.cfn_client.describe_stacks()['Stacks']:
-                is_trial = False
-                is_correct_stage = False
+                correct_stage = False
+                correct_type = False
                 if 'Outputs' in stack:
                     for output in stack['Outputs']:
                         key = output['OutputKey']
                         value = output['OutputValue']
-                        if key == 'Type' and value == self.stack_type:
-                            is_trial = True
+                        if key == 'Type' and value == 'Trial':
+                            correct_type = True
                         if key == 'Stage' and value == os.environ['stage']:
-                            is_correct_stage = True
-                    if is_correct_stage and is_trial:
+                            correct_stage = True
+                    if correct_type and correct_stage:
                         response['Stacks'].append(stack)
-                        break
             return response
         except KeyError as err:
             print("{}".format(err))
