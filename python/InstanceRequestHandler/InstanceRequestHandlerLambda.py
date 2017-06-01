@@ -48,24 +48,22 @@ class InstanceRequestHandler(object):
         Describes and returns all the current cfn stacks
         That we want
         """
-        trial = False
-        test = False
         response = self.cloud_client.describe_stacks()
         if 'Stacks' in response:
             stacks = []
-            stage = os.environ['stage']
             for stack in response['Stacks']:
-                if 'Outputs' not in stack:
-                    continue
-                for output in stack['Outputs']:
-                    key = output['OutputKey']
-                    value = output['OutputValue']
-                    if key == "Type" and value == "Trial":
-                        trial = True
-                    if key == "Stage" and value == stage:
-                        test = True
-                if trial and test:
-                    stacks.append(stack)
+                correct_stage = False
+                correct_type = False
+                if 'Outputs' in stack:
+                    for output in stack['Outputs']:
+                        key = output['OutputKey']
+                        value = output['OutputValue']
+                        if key == 'Type' and value == 'Trial':
+                            correct_type = True
+                        if key == 'Stage' and value == os.environ['stage']:
+                            correct_stage = True
+                    if correct_type and correct_stage:
+                        stacks.append(stack)
             return stacks
         return None
 
