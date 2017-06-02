@@ -115,7 +115,7 @@ class TestTrialStackBuilder(unittest.TestCase):
     def test_listStack(self):
         print("test_listStack()")
         self.build_stack()
-        stacks = TSB.listStack()
+        stacks = TSB.list_stack()
         self.assertIsNotNone(stacks)
         self.assertEqual(len(stacks), 1)
         print("Test 'list stacks' : passed")
@@ -144,8 +144,8 @@ class TestTrialStackBuilder(unittest.TestCase):
     @mock_cloudformation
     def test_findInstanceId(self):
         self.build_stack()
-        stacks = TSB.listStack()
-        instanceIdResult = TSB.findInstanceId(stacks[0]['Outputs'])
+        stacks = TSB.list_stack()
+        instanceIdResult = TSB.find_instance_id(stacks[0]['Outputs'])
         instanceIdExpected = "i-0e0f25febd2bb4f43"
         assert instanceIdExpected == instanceIdResult
         print "Test 'Find Stack instanceId' : passed"
@@ -155,7 +155,7 @@ class TestTrialStackBuilder(unittest.TestCase):
     def test_findInstance(self):
         instance = self.add_servers()
         self.build_stack(instance.id)
-        instance_test = TSB.findInstance(instance.id)
+        instance_test = TSB.find_instance(instance.id)
         assert instance_test['ResponseMetadata']['HTTPStatusCode'] == 200
         assert instance_test['ResponseMetadata']["RetryAttempts"] == 0
         print("Test 'Find Instance' : passed")
@@ -166,8 +166,8 @@ class TestTrialStackBuilder(unittest.TestCase):
         instance = self.add_servers()
         instance.add_tag('Allocated', 'false')
         self.build_stack(instance.id)
-        instance_test = TSB.findInstance(instance.id)
-        unassigned = TSB.findUnassignedInstance(instance_test['Tags'])
+        instance_test = TSB.find_instance(instance.id)
+        unassigned = TSB.find_unassigned_instance(instance_test['Tags'])
         assert unassigned == True
         print("Test 'Find Unassigned Instance' : passed")
 
@@ -177,8 +177,8 @@ class TestTrialStackBuilder(unittest.TestCase):
         instance = self.add_servers()
         instance.add_tag('Allocated', 'false')
         self.build_stack(instance.id)
-        stacks = TSB.listStack()
-        count = TSB.countUnassignedStack(stacks)
+        stacks = TSB.list_stack()
+        count = TSB.count_unassigned_stack(stacks)
         assert count == 1
         print("Test 'Count Unassigned Stack ' : passed")
 
@@ -199,7 +199,7 @@ class TestTrialStackBuilder(unittest.TestCase):
             raise ValueError("file {} is not a file or dir.".format(path))
         local_intance = TrialStackBuilder('TrialBucket', 'test')
         local_intance.template = template
-        stackId = local_intance.createStack()
+        stackId = local_intance.create_stack()
         assert stackId != None
         assert ('arn:aws:cloudformation:us-east-1' in stackId ) == True
         print("Test 'Create Stack' : passed")
@@ -219,7 +219,7 @@ class TestTrialStackBuilder(unittest.TestCase):
         else:
             raise ValueError("file {} is not a file or dir.".format(path))
         local_intance = TrialStackBuilder('TrialBucket','test')
-        testTemplate = local_intance.getTemplate()
+        testTemplate = local_intance.get_template()
         assert testTemplate == template
         print("Test 'Get Template' : passed")
 
