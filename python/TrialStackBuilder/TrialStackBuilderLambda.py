@@ -67,7 +67,7 @@ class TrialStackBuilder(object):
                 if not instance:
                     raise ValueError('Cannot find any valid instance')
                 unassigned = self.find_unassigned_instance(instance['Tags'])
-                if not unassigned:
+                if unassigned is None:
                     raise ValueError('Cannot find any unassigned instance')
                 elif unassigned:
                     count += 1
