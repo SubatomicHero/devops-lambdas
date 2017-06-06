@@ -109,7 +109,15 @@ class LifecycleHandler(object):
         """Stops an instance by instance id"""
         if instance_id:
             print("Stopping Instance {}".format(instance_id))
-            return self.ec2_client.stop_instances(InstanceIds=[instance_id])
+            response = self.ec2_client.stop_instances(
+                InstanceIds=[instance_id],
+                Force=True
+            )
+            if 'StoppingInstances' in response:
+                current_state = response['StoppingInstances'][0]['CurrentState']['Name']
+                prev_state = response['StoppingInstances'][0]['PreviousState']['Name']
+                if current_state == 'stopping' and prev_state == 'running':
+                    return response
         return None
 
     def terminate_stack(self, stack):
