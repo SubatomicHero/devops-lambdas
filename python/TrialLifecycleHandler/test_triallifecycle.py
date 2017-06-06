@@ -1,3 +1,5 @@
+import json
+from datetime import datetime, timedelta
 import unittest
 import os
 import boto
@@ -5,11 +7,9 @@ import boto
 os.environ['days_to_stop'] = '3'
 os.environ['stack_type'] = 'Trial'
 os.environ['stage'] = 'test'
-import json
 
-from datetime import datetime, timedelta
 from triallifecycle import LifecycleHandler
-from moto import mock_cloudformation, mock_ec2
+from moto import mock_cloudformation, mock_ec2, mock_opsworks
 from botocore.exceptions import ClientError
 from nose.tools import assert_raises
 
@@ -27,9 +27,32 @@ class TestTrialLifeCycle(unittest.TestCase):
         self.assertEqual(HANDLER.expiry_key, 'ExpiryDate')
         self.assertEqual(len(HANDLER.states), 2)
 
+    @mock_opsworks
     @mock_cloudformation
     def build_stack(self, instance_id="i-0e0f25febd2bb4f43"):
         """build_stack"""
+        # mock opsworks too
+        stack_id = HANDLER.ops_client.create_stack(
+            Name="test_stack_1",
+            Region="us-east-1",
+            ServiceRoleArn="service_arn",
+            DefaultInstanceProfileArn="profile_arn"
+        )['StackId']
+
+        os.environ['layer_id'] = HANDLER.ops_client.create_layer(
+            StackId=stack_id,
+            Type="custom",
+            Name="TestLayer",
+            Shortname="TestLayerShortName"
+        )['LayerId']
+
+        HANDLER.ops_client.create_instance(
+            StackId=stack_id,
+            LayerIds=[os.environ['layer_id']],
+            InstanceType='t2.micro',
+            Hostname='e6br9y'
+        )
+
         # Create a stack first so we can play with it
         dummy_template = {
             "AWSTemplateFormatVersion": "2010-09-09",
@@ -175,19 +198,16 @@ class TestTrialLifeCycle(unittest.TestCase):
         uid = HANDLER.get_instance_id(stack)
         self.assertEquals(uid, instance.id)
 
-    @mock_ec2
-    def test_stop_instance(self):
-        """test_stop_instance"""
-        instance_id = ""
-        response = HANDLER.stop_instance(instance_id)
-        self.assertIsNone(response)
+    # @mock_opsworks
+    # def test_stop_instance(self):
+    #     """test_stop_instance"""
+    #     self.build_stack()
+    #     stack = HANDLER.describe_stacks()[0]
 
-        instance = self.add_servers()
-        HANDLER.stop_instance(instance.id)
-        response = HANDLER.describe_instances(instance.id)
-        self.assertEquals(response['Reservations'][0]['Instances'][0]['State']['Name'], 'stopped')
+    #     response = HANDLER.stop_instance(stack)
+    #     self.assertIsNone(response)
 
-    @mock_ec2
+    @mock_opsworks
     @mock_cloudformation
     def test_stop_instance_if_expired(self):
         """test_stop_instance_if_expired"""
@@ -227,8 +247,9 @@ class TestTrialLifeCycle(unittest.TestCase):
         instance = self.add_servers()
         instance.add_tag(HANDLER.expiry_key, str(yesterday.date().strftime("%d-%m-%Y")))
         self.build_stack(instance.id)
+        stack = HANDLER.describe_stacks()[0]
         # lets stop the instance, as per the logic
-        HANDLER.stop_instance(instance.id)
+        HANDLER.stop_instance(stack)
 
         # run the handler, the stack should be terminated. Describing would return an ClientError
         # as it no longer exists
