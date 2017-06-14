@@ -22,7 +22,7 @@ class TrialStackBuilder(object):
 
     def list_stack(self, token=None):
         """
-        Lists all the stacks by type and stage and returns them
+        Lists all the stacks by name as some may not be created yet
         """
         if token:
             response = self.cloud_client.describe_stacks(
@@ -33,18 +33,8 @@ class TrialStackBuilder(object):
         if 'Stacks' in response:
             stacks = []
             for stack in response['Stacks']:
-                correct_stage = False
-                correct_type = False
-                if 'Outputs' in stack:
-                    for output in stack['Outputs']:
-                        key = output['OutputKey']
-                        value = output['OutputValue']
-                        if key == 'Type' and value == 'Trial':
-                            correct_type = True
-                        if key == 'Stage' and value == os.environ['stage']:
-                            correct_stage = True
-                    if correct_type and correct_stage:
-                        stacks.append(stack)
+                if "trial-{}".format(self.stage) in stack['StackName']:
+                    stacks.append(stack)
             if 'NextToken' in response:
                 stacks = stacks + self.list_stack(response['NextToken'])
             return stacks
