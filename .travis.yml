@@ -11,6 +11,7 @@ install:
   - pip install moto
   - pip install sure
 script:
+  - python python/AmiUpdater/test_AmiUpdater.py
   - python python/AssignUserHandler/test_assignuserhandler.py
   - python python/FulfillmentHandler/test_FulfillmentHandler.py
   - python python/InstanceRequestHandler/test_InstanceReqHandler.py
