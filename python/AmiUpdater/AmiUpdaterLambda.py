@@ -9,7 +9,7 @@ class AMIUpdater(object):
             print('{}\n'.format(err))
             raise err
             
-    def find_AMI(self, productname):
+    def find_AMI(self, productname, branchname):
         """
         Finds AMIs with the tag product equals to APS
         """
@@ -21,6 +21,18 @@ class AMIUpdater(object):
                             'Name': 'tag-key',
                             'Values': [
                                 'Product'
+                            ]
+                        },
+                        {
+                            'Name': 'tag-key',
+                            'Values': [
+                                'Branch'
+                            ]
+                        },
+                        {
+                            'Name': 'tag-value',
+                            'Values': [
+                                branchname
                             ]
                         },
                         {
@@ -54,6 +66,7 @@ class AMIUpdater(object):
                             print('The tag of the ami with id "{}" is removed'.format(ami['ImageId']))
                         else:
                             print('The tag of the ami with id "{}" is already removed'.format(ami['ImageId']))
+                        break
             return 200
         except Exception as err:
             print('{}\n'.format(err))
@@ -87,8 +100,8 @@ class AMIUpdater(object):
         Runs the AmiUpdater
         """
         try:
-            if 'Product' in event:
-                amiList = self.find_AMI(event['Product'])
+            if 'Product' in event and 'Branch' in event:
+                amiList = self.find_AMI(event['Product'], event['Branch'])
                 if amiList is None:
                     raise ValueError('Failed to find any ami')
                 response = self.amiUpdate(amiList)
