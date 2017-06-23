@@ -16,19 +16,25 @@ class AMIUpdater(object):
         try:
             if productname and isinstance(productname, six.string_types) and productname.strip():
                 response = self.ec2_client.describe_images(
-                    Filters=[
+                    Filters = [
                         {
                             'Name': 'tag-key',
                             'Values': [
-                                'Product',
+                                'Product'
                             ]
                         },
+                        {
+                            'Name': 'tag-value',
+                            'Values': [
+                                productname
+                            ]
+                        }
                     ]
                 )
                 if response is None:
                     raise ValueError('No AMI could be found')
                 return response
-            raise ValueError('The value of the tag key Product is not valid')
+            raise ValueError('The value of the tag value of the key Product is not valid')
         except Exception as err:
             print('{}\n'.format(err))
         else:
@@ -55,11 +61,11 @@ class AMIUpdater(object):
             return None
             
             
-    def remove_tag(self, amiName):
+    def remove_tag(self, ImageId):
         try:
-            if amiName and isinstance(amiName, six.string_types) and amiName.strip():
+            if ImageId and isinstance(ImageId, six.string_types) and ImageId.strip():
                 response = self.ec2_client.create_tags(
-                    Resources = [ amiName ],
+                    Resources = [ ImageId ],
                     Tags = [
                         {
                            'Key': 'Version',
@@ -86,6 +92,9 @@ class AMIUpdater(object):
                 if amiList is None:
                     raise ValueError('Failed to find any ami')
                 response = self.amiUpdate(amiList)
+                if response is None:
+                    raise ValueError('Failed to update ami')
+                print('Update of AMI was successfull')
                 return 200
             raise ValueError('Cannot find any event "product"')
         except Exception as err:
