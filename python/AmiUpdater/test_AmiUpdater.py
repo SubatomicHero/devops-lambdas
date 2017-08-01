@@ -56,6 +56,10 @@ class TestAmiUpdater(unittest.TestCase):
                     'Key': 'Version',
                     'Value': 'LATEST'
                 },
+                {
+                    'Key': 'Branch',
+                    'Value': 'develop'
+                },
             ]
         )
         return imageId
@@ -67,7 +71,7 @@ class TestAmiUpdater(unittest.TestCase):
         """
         instance = self.add_servers()
         imageId = self.build_ami(instance.id)
-        response =  AmiUp.find_AMI('APS')
+        response =  AmiUp.find_AMI('APS', 'develop')
         assert response['Images'][0]['ImageId'] == imageId
         print('Test finding the ami with tag product : passed ')
 
@@ -78,10 +82,22 @@ class TestAmiUpdater(unittest.TestCase):
         """
         instance = self.add_servers()
         imageId = self.build_ami(instance.id)
-        list =  AmiUp.find_AMI('APS')
+        list =  AmiUp.find_AMI('APS', 'develop')
         result = AmiUp.amiUpdate(list)
         assert result == 200
         print('Test updating of amis : passed ')
+
+    @mock_ec2
+    def test_removeLatestAmi(self):
+        """
+        Tests remove latest Ami from the list
+        """
+        instance = self.add_servers()
+        imageId = self.build_ami(instance.id)
+        l =  AmiUp.find_AMI('APS', 'develop')
+        l = AmiUp.removeLatestAmi(l, imageId )
+        assert len(l['Images']) == 0
+        print('Test remove latest Ami: passed ')
  
     @mock_ec2
     def test_amiUpdate_alreadyupdated(self):
@@ -100,7 +116,7 @@ class TestAmiUpdater(unittest.TestCase):
                 },
             ]
         )
-        list =  AmiUp.find_AMI('APS')
+        list =  AmiUp.find_AMI('APS', 'develop')
         result = AmiUp.amiUpdate(list)
         assert result == 200
         print('Test checking of amis already updated : passed ')
@@ -121,6 +137,8 @@ class TestAmiUpdater(unittest.TestCase):
         """
         Tests failing of the removing tags
         """
+        instance = self.add_servers()
+        imageId = self.build_ami(instance.id)
         result = AmiUp.remove_tag('')
         assert result == None
         print('Test failed removing tags : passed ')
@@ -130,7 +148,9 @@ class TestAmiUpdater(unittest.TestCase):
         """
         Tests run function
         """
-        event = {"Product":"APS"}
+        instance = self.add_servers()
+        imageId = self.build_ami(instance.id)
+        event = {"Product":"APS", "Branch":"develop", "LatestAMI":imageId}
         result = AmiUp.run(event)
         assert result == 200
         print('Test run function : passed ')
