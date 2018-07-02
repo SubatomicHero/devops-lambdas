@@ -1,26 +1,26 @@
-from __future__ import print_function
-import os
+import logging
+from os import environ
 import cfnresponse
 import boto3
-import json
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+client = boto3.client('apigateway')
 
 def handler(event, context):
   logicalId = event['LogicalResourceId']
   try:
-    client = boto3.client('apigateway')
     if event['RequestType'] == 'Create':
       response = client.create_domain_name(
-        domainName=os.environ['domain_name'],
-        certificateArn=os.environ['certificate_arn']
+        domainName=environ['domain_name'],
+        certificateArn=environ['certificate_arn']
       )
       responseData = {'DistributionName': response['distributionDomainName']}
       cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, logicalId)
     elif event['RequestType'] == 'Delete':
-      client.delete_domain_name(
-        domainName=os.environ['domain_name']
-      )
+      client.delete_domain_name(domainName=environ['domain_name'])
       cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, logicalId)
   except Exception as err:
-    message = "{0}\n".format(err)
-    print(message)
+    logger.error(str(err))
     cfnresponse.send(event, context, cfnresponse.FAILED, {}, logicalId)
